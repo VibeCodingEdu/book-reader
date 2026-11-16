@@ -8,7 +8,7 @@ import { fetchExternal } from './external';
 import { passphraseMatches, signToken, verifyToken, type TokenPayload } from './auth';
 import { importGutenberg, searchGutenberg } from './gutenberg';
 import * as store from './store';
-import { EngineUnavailable, getEngine } from './translate/engines';
+import { EngineUnavailable, getEngine, pickEngineId } from './translate/engines';
 
 export interface Env {
   ALLOWED_ORIGINS: string;
@@ -193,7 +193,7 @@ app.get('/api/spend', async (c) => {
 app.post('/api/translate/word', async (c) => {
   const req = await c.req.json<WordLookupRequest>();
   if (!req.sentence || !req.word || req.sentence.length > 2000) return c.json({ error: 'בקשה לא תקינה' }, 400);
-  const engineId = req.engine || c.env.DEFAULT_ENGINE || 'claude-haiku';
+  const engineId = pickEngineId(req.engine, c.env.DEFAULT_ENGINE, c.env);
   const lang = req.lang || 'en';
 
   const key = await store.cacheKey([engineId, lang, req.word.toLowerCase(), req.offset ?? -1, req.sentence]);
@@ -221,7 +221,7 @@ app.post('/api/translate/text', async (c) => {
   if (!req.text?.trim() || req.text.length > 3000 || (req.context ?? '').length > 6000) {
     return c.json({ error: 'בקשה לא תקינה' }, 400);
   }
-  const engineId = req.engine || c.env.DEFAULT_ENGINE || 'claude-haiku';
+  const engineId = pickEngineId(req.engine, c.env.DEFAULT_ENGINE, c.env);
   const lang = req.lang || 'en';
   const key = await store.cacheKey(['text', engineId, lang, req.text.trim(), req.context ?? '']);
   const cached = await store.getCachedLookup(c.env.DB, key);

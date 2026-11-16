@@ -172,3 +172,17 @@ export function getEngine(id: string, keys: EngineKeys): Engine {
 }
 
 export class EngineUnavailable extends Error {}
+
+/**
+ * איזה מנוע להפעיל: מה שהמשתמש ביקש; אחרת ברירת המחדל של השרת;
+ * ואם לברירת המחדל אין מפתח – המנוע הראשון שיש לו מפתח.
+ */
+export function pickEngineId(requested: string | undefined, def: string | undefined, keys: EngineKeys): string {
+  if (requested) return requested;
+  const available = [
+    keys.ANTHROPIC_API_KEY ? 'claude-haiku' : null,
+    keys.GEMINI_API_KEY ? 'gemini-flash-lite' : null,
+  ].filter(Boolean) as string[];
+  if (def && available.includes(def)) return def;
+  return available[0] ?? def ?? 'claude-haiku';
+}
