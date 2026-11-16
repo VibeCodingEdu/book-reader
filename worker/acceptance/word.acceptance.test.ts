@@ -51,7 +51,11 @@ for (const eng of engines) {
           r = out.result;
           totalUsd += out.usd;
           const meaning = stripNiqqud(r.contextMeaning);
-          const unitOk = !tc.unitIncludes || tc.unitIncludes.every((w) => r!.unit.toLowerCase().includes(w));
+          // הביטוי זוהה אם היחידה מכילה את כל חלקיו, או אם סוג היחידה וצורת המילון מראים זאת
+          const unitOk =
+            !tc.unitIncludes ||
+            tc.unitIncludes.every((w) => r!.unit.toLowerCase().includes(w)) ||
+            (r.unitType === 'phrasal_verb' && r.lemma.toLowerCase().includes(tc.unitIncludes[tc.unitIncludes.length - 1]));
           pass = tc.expect.some((e) => meaning.includes(e)) && unitOk;
           return expect(pass, `קיבלנו: ${r.unit} = ${r.contextMeaning}`).toBe(true);
         } finally {

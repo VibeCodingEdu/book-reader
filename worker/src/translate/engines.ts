@@ -109,25 +109,33 @@ const GEMINI_SCHEMA = {
   propertyOrdering: ['unit', 'unitType', 'lemma', 'pos', 'ipa', 'contextMeaning', 'otherMeanings'],
 };
 
+function geminiFetch(apiKey: string, system: string, user: string, schema: object): Promise<Response> {
+  return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ role: 'user', parts: [{ text: user }] }],
+      generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0 },
+    }),
+  });
+}
+
 async function geminiJson(
   apiKey: string,
   system: string,
   user: string,
   schema: object,
 ): Promise<{ data: unknown; usd: number }> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: 'user', parts: [{ text: user }] }],
-        generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0 },
-      }),
-    },
-  );
+  // עומס זמני אצל גוגל (429/503) – עד 2 ניסיונות חוזרים בהשהיה קצרה
+  let res!: Response;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, 700 * attempt));
+    res = await geminiFetch(apiKey, system, user, schema);
+    if (res.status !== 429 && res.status !== 503) break;
+  }
   if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 200)}`);
+
   const data = (await res.json()) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[];
     usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };

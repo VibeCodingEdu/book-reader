@@ -18,7 +18,7 @@ Your job:
 3. Give up to 4 OTHER common meanings of the lemma, in Hebrew without niqqud, each with its part of speech in Hebrew. Do not repeat the context meaning.
 
 Field rules:
-- unit: the exact words from the sentence (as written there), including all parts of a phrasal verb/idiom.
+- unit: the exact words from the sentence (as written there), including ALL parts of a phrasal verb/idiom. Example: for "a fight broke out" with ⟦broke⟧ tapped, unit is "broke out", not "broke".
 - lemma: dictionary form of the unit ("break out", "court", "end").
 - pos: part of speech in Hebrew for the context meaning: פועל, שם עצם, שם תואר, תואר הפועל, מילת יחס, כינוי גוף, מילת חיבור, מילת קריאה, שם פרטי, ביטוי.
 - ipa: American IPA of the lemma, between slashes.`;

@@ -62,8 +62,9 @@ export function tokenize(sentence: string): Token[] {
 }
 
 /** אילו מילים במשפט שייכות ליחידה שזוהתה ("broke out") – בחלון קטן סביב המילה שנלחצה */
-export function unitTokenOffsets(tokens: Token[], tappedOffset: number, unit: string): number[] {
-  const parts = unit.toLowerCase().split(/\s+/).filter(Boolean);
+export function unitTokenOffsets(tokens: Token[], tappedOffset: number, unit: string, lemma = ''): number[] {
+  // אם המודל כתב ביחידה רק חלק מהביטוי ("broke"), נעזרים גם בצורת המילון ("break out")
+  const parts = [...unit.toLowerCase().split(/\s+/), ...lemma.toLowerCase().split(/\s+/).slice(1)].filter(Boolean);
   const words = tokens.filter((t) => t.word);
   const idx = words.findIndex((t) => t.offset === tappedOffset);
   if (idx < 0 || parts.length <= 1) return [tappedOffset];

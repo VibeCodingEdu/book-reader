@@ -68,6 +68,11 @@ describe('tokenize', () => {
 });
 
 describe('unitTokenOffsets', () => {
+  it('נעזר בצורת המילון כשהיחידה חלקית', () => {
+    const s = 'One day a fight broke out in the street.';
+    const offs = unitTokenOffsets(tokenize(s), s.indexOf('broke'), 'broke', 'break out');
+    expect(offs.sort((a, b) => a - b)).toEqual([s.indexOf('broke'), s.indexOf('out')]);
+  });
   it('מסמן את כל חלקי הביטוי הפועלי', () => {
     const s = 'One day a fight broke out in the street.';
     const t = tokenize(s);

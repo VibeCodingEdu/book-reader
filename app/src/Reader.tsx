@@ -366,7 +366,7 @@ export function Reader({ book, settings, onBack, onOpenSettings }: Props) {
     if (sel.kind === 'range') marks = sel.marks;
     else if (sel.kind === 'range-start') marks = [{ sid: sel.sid, o: sel.offset }];
     else {
-      const offsets = sel.state === 'done' ? unitTokenOffsets(tokenize(sel.sentence), sel.offset, sel.result.unit) : [sel.offset];
+      const offsets = sel.state === 'done' ? unitTokenOffsets(tokenize(sel.sentence), sel.offset, sel.result.unit, sel.result.unitType === 'word' ? '' : sel.result.lemma) : [sel.offset];
       marks = offsets.map((o) => ({ sid: sel.sid, o }));
     }
     const cls = sel.kind === 'range' ? ['hl', 'hlr'] : ['hl'];
