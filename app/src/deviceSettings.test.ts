@@ -11,12 +11,20 @@ describe('parseSettings', () => {
   });
 
   it('שומר ערכים תקינים', () => {
-    const s = parseSettings(JSON.stringify({ theme: 'eink', fontSize: 24, fontFamily: 'sans' }));
-    expect(s).toEqual({ theme: 'eink', fontSize: 24, fontFamily: 'sans' });
+    const s = parseSettings(
+      JSON.stringify({ theme: 'eink', fontSize: 24, fontFamily: 'sans', lineHeight: 1.8, margin: 32, engine: 'gemini-flash-lite', updatedAt: 5 }),
+    );
+    expect(s).toEqual({ theme: 'eink', fontSize: 24, fontFamily: 'sans', lineHeight: 1.8, margin: 32, engine: 'gemini-flash-lite', updatedAt: 5 });
   });
 
   it('מחליף ערכים לא חוקיים בברירת המחדל', () => {
-    const s = parseSettings(JSON.stringify({ theme: 'neon', fontSize: 400 }));
+    const s = parseSettings(JSON.stringify({ theme: 'neon', fontSize: 400, lineHeight: 9 }));
     expect(s).toEqual(DEFAULT_SETTINGS);
+  });
+
+  it('הגדרות ישנות (לפני שדות חדשים) מקבלות ברירות מחדל לשדות החסרים', () => {
+    const s = parseSettings(JSON.stringify({ theme: 'sepia', fontSize: 22, fontFamily: 'serif' }));
+    expect(s.theme).toBe('sepia');
+    expect(s.lineHeight).toBe(DEFAULT_SETTINGS.lineHeight);
   });
 });

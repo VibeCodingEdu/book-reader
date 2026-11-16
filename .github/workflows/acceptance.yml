@@ -1,0 +1,25 @@
+# בדיקות קבלה מול מנועי התרגום האמיתיים. מופעל ידנית בלבד (עולה סנטים בודדים).
+# GitHub → Actions → Acceptance → Run workflow. התוצאות מופיעות בטבלה בעמוד הריצה.
+name: Acceptance
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  word-in-context:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run --config vitest.acceptance.config.ts
+        working-directory: worker
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

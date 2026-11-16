@@ -9,7 +9,8 @@ export interface DiagRow {
 export function collectDiagnostics(): DiagRow[] {
   const nav = navigator as Navigator & { standalone?: boolean };
   const mq = (q: string) => window.matchMedia(q).matches;
-  const chrome = /Chrome\/(\d+)/.exec(navigator.userAgent)?.[1];
+  // באייפון Chrome מזדהה כ-CriOS (ובפועל רץ על מנוע של ספארי)
+  const chrome = /(?:Chrome|CriOS)\/(\d+)/.exec(navigator.userAgent)?.[1];
   const safari = /Version\/([\d.]+).*Safari/.exec(navigator.userAgent)?.[1];
 
   return [

@@ -7,9 +7,19 @@ account_id = "b41762f2a303bb199c16198f09ec43ed"
 [vars]
 # מאילו אתרים מותר לפנות לשרת (האתר ב-GitHub Pages + פיתוח מקומי)
 ALLOWED_ORIGINS = "https://vibecodingedu.github.io,http://localhost:5173"
+# מנוע התרגום שבשימוש כברירת מחדל (claude-haiku / gemini-flash-lite)
+DEFAULT_ENGINE = "claude-haiku"
+# תקרת הוצאה חודשית בדולרים – מעבר לה השרת מסרב לתרגם
+MONTHLY_CAP_USD = "5"
+
+# מסד הנתונים. את המזהה ממלא תהליך הפריסה (הוא יוצר את המסד אם אינו קיים).
+[[d1_databases]]
+binding = "DB"
+database_name = "book-reader"
+database_id = "__D1_DATABASE_ID__"
+migrations_dir = "migrations"
 
 # סודות – לא כאן! הם נשמרים ב-GitHub (Settings → Secrets → Actions)
-# בשמות PASSPHRASE ו-TOKEN_SECRET, ותהליך הפריסה מעביר אותם ל-Cloudflare.
+# ותהליך הפריסה מעביר אותם ל-Cloudflare:
+#   PASSPHRASE, TOKEN_SECRET, ANTHROPIC_API_KEY, GEMINI_API_KEY
 # לפיתוח מקומי: קובץ worker/.dev.vars (ראה .dev.vars.example)
-
-# באבן דרך 1 יתווספו כאן D1 (מסד נתונים) ו-R2 (אחסון ספרים).
