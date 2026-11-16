@@ -117,6 +117,24 @@ export const uploadBook = (meta: BookMeta, chapters: Chapter[]) =>
     (r) => r.book,
   );
 
+/** קובץ ספר מאתר קטלוג, דרך השרת (בלחיצת המשתמש) */
+export async function fetchExternal(url: string): Promise<ArrayBuffer> {
+  const token = loadSession()?.token;
+  let res: Response;
+  try {
+    res = await fetch(`${WORKER_URL}/api/external?url=${encodeURIComponent(url)}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  } catch {
+    throw new ApiError(0, 'אין חיבור לשרת');
+  }
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new ApiError(res.status, body.error ?? `ההורדה נכשלה (${res.status})`);
+  }
+  return res.arrayBuffer();
+}
+
 export const deleteBook = (id: string) => request(`/api/books/${encodeURIComponent(id)}`, { method: 'DELETE' });
 
 /** פרק – קודם מהמטמון המקומי (IndexedDB), אחר כך מהשרת */

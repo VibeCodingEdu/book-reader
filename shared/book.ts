@@ -14,6 +14,8 @@ export interface BookMeta {
   level?: string;
   /** דף הספר במקור, אם יש */
   sourceUrl?: string;
+  /** קובץ שמע (MP3) של הספר באתר המקור, אם יש */
+  audioUrl?: string;
   chapterCount: number;
   wordCount: number;
   chapterTitles: string[];

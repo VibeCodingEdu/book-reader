@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { BookMeta } from '../../shared/book';
 import { FILTER_LEVELS, levelMatches, levelRank } from './levels';
-import { ACCEPT, uploadFile, type CatalogLink } from './upload';
+import { ACCEPT, audioUrlFor, directFileUrl, importFromCatalog, uploadFile, type CatalogLink } from './upload';
 
 interface Entry {
   id: string;
@@ -22,13 +22,13 @@ const SOURCES: { id: SourceId; label: string; file: string; hint: string }[] = [
     id: 'english-e-reader',
     label: 'English e-Reader',
     file: 'english-e-reader.json',
-    hint: 'כדי להוריד באתר צריך להיות מחובר לחשבון. מומלץ להוריד בפורמט EPUB (הפרקים נשמרים).',
+    hint: '"ייבוא לספרייה" מוריד את הספר בפורמט EPUB ומוסיף קישור להקראה (MP3) מהאתר.',
   },
   {
     id: 'learnenglishteam',
     label: 'Learn English Team',
     file: 'learnenglishteam.json',
-    hint: 'הספרים באתר הם קובצי PDF. הקישור מוריד את הקובץ ישירות.',
+    hint: 'הספרים באתר הם קובצי PDF. "ייבוא לספרייה" מוריד ומפענח אותם.',
   },
 ];
 
@@ -87,22 +87,31 @@ export function Catalog(props: { have: Set<string>; onBack: () => void; onUpload
       return n;
     });
 
-  const onFile = async (e: Entry, file: File | undefined) => {
-    if (!file) return;
+  const linkFor = (e: Entry): CatalogLink => ({
+    source,
+    id: e.id,
+    title: e.title,
+    author: e.author,
+    level: e.level,
+    url: e.url,
+    audioUrl: audioUrlFor(source, e.id),
+  });
+
+  const run = async (e: Entry, job: (onStage: (s: string) => void) => Promise<BookMeta>) => {
     setError(null);
     setBusy({ id: e.id, stage: 'מתחיל…' });
     try {
-      const book = await uploadFile(
-        file,
-        { source, id: e.id, title: e.title, author: e.author, level: e.level, url: e.url },
-        (stage) => setBusy({ id: e.id, stage }),
-      );
-      props.onUploaded(book);
+      props.onUploaded(await job((stage) => setBusy({ id: e.id, stage })));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ההעלאה נכשלה');
+      setError(err instanceof Error ? err.message : 'הייבוא נכשל');
     } finally {
       setBusy(null);
     }
+  };
+
+  const onImport = (e: Entry) => run(e, (st) => importFromCatalog(linkFor(e), st));
+  const onFile = (e: Entry, file: File | undefined) => {
+    if (file) run(e, (st) => uploadFile(file, linkFor(e), st));
   };
 
   return (
@@ -205,12 +214,17 @@ export function Catalog(props: { have: Set<string>; onBack: () => void; onUpload
                       {e.description}
                     </p>
                   )}
-                  <div class="row">
+                  {directFileUrl(source, e.id, e.url) && (
+                    <button class="import-btn" disabled={!!busy} onClick={() => onImport(e)}>
+                      {busy?.id === e.id ? busy.stage : inLib ? 'ייבוא מחדש לספרייה' : 'ייבוא לספרייה'}
+                    </button>
+                  )}
+                  <div class="row small-actions">
                     <a class="btn secondary" href={e.url} target="_blank" rel="noopener noreferrer">
-                      1. פתיחה באתר להורדה
+                      פתיחה באתר
                     </a>
-                    <label class={`btn ${busy ? 'disabled' : ''}`}>
-                      {busy?.id === e.id ? busy.stage : '2. העלאת הקובץ שהורדתי'}
+                    <label class={`btn secondary ${busy ? 'disabled' : ''}`}>
+                      העלאה ידנית של קובץ
                       <input
                         type="file"
                         accept={ACCEPT}

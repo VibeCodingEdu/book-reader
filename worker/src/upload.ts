@@ -12,6 +12,9 @@ export function validateUpload(meta?: BookMeta, chapters?: Chapter[]): string | 
   if (!SOURCES.includes(meta.source)) return 'מקור לא תקין';
   if (typeof meta.title !== 'string' || !meta.title.trim()) return 'חסר שם ספר';
   if (!Array.isArray(chapters) || !chapters.length) return 'הספר ריק';
+  if (meta.audioUrl !== undefined && !/^https:\/\/english-e-reader\.net\/download\?link=[a-z0-9-]+&format=mp3$/.test(meta.audioUrl)) {
+    return 'קישור שמע לא תקין';
+  }
   if (chapters.length > MAX_CHAPTERS) return `יותר מדי פרקים (${chapters.length})`;
   for (const ch of chapters) {
     if (!ch || typeof ch.title !== 'string' || !Array.isArray(ch.paragraphs)) return 'מבנה פרק לא תקין';

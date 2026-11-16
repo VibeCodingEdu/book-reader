@@ -13,6 +13,7 @@ import {
   type SentenceStart,
 } from './paging';
 import { createPositionSaver, resolveStartPosition } from './position';
+import { AudioPanel } from './AudioPanel';
 import { WordSheet, type RangeSel, type RangeStartSel, type Selection, type WordSel } from './WordSheet';
 
 interface Props {
@@ -34,6 +35,8 @@ export function Reader({ book, settings, onBack, onOpenSettings }: Props) {
   const [pageCount, setPageCount] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState<Selection | null>(null);
+  const [audioOpen, setAudioOpen] = useState(false);
+  const [audioMounted, setAudioMounted] = useState(false);
 
   const startsRef = useRef<SentenceStart[]>([]);
   // העמוד הנוכחי גם ב-ref: לחיצות מהירות ברצף לא יקראו ערך ישן
@@ -406,10 +409,24 @@ export function Reader({ book, settings, onBack, onOpenSettings }: Props) {
             </option>
           ))}
         </select>
+        {book.audioUrl && (
+          <button
+            class="icon-btn"
+            aria-label="הקראה (MP3)"
+            aria-pressed={audioOpen}
+            onClick={() => {
+              setAudioMounted(true);
+              setAudioOpen(!audioOpen);
+            }}
+          >
+            🎧
+          </button>
+        )}
         <button class="icon-btn" onClick={onOpenSettings} aria-label="הגדרות תצוגה">
           Aa
         </button>
       </header>
+      {audioMounted && <AudioPanel book={book} open={audioOpen} />}
 
       <div
         class="viewport"

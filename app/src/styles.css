@@ -345,3 +345,15 @@ select {
 .block { display: block; }
 /* קטע מסומן ב-E-ink: קו תחתון עבה רציף במקום מסגרת לכל מילה */
 :root[data-theme='eink'] .w.hl.hlr { outline: none; text-decoration: underline 3px solid #000; text-underline-offset: 4px; }
+/* label שמשמש ככפתור – בלי השוליים של label רגיל, באותו גובה כמו הקישור לידו */
+label.btn { margin: 0; }
+.catalog-detail .row { align-items: stretch; flex-wrap: nowrap; }
+
+/* ייבוא בלחיצה ונגן הקראה */
+.import-btn { width: 100%; margin: 4px 0 8px; }
+.small-actions .btn { font-size: 0.85rem; font-weight: 500; min-height: 40px; padding: 6px 10px; }
+.audio-panel { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.audio-panel.hidden { display: none; }
+.audio-panel audio { flex: 1; min-width: 200px; height: 40px; }
+.audio-panel select { min-height: 40px; }
+:root[data-theme='eink'] .audio-panel { border-bottom: 2px solid #000; }

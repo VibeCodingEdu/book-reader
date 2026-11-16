@@ -11,6 +11,7 @@ export interface CatalogLink {
   author: string;
   level?: string;
   url: string;
+  audioUrl?: string;
 }
 
 function slug(s: string): string {
@@ -35,6 +36,7 @@ export async function uploadFile(file: File, from?: CatalogLink, onStage?: (s: s
     source: from?.source ?? 'upload',
     level: from?.level,
     sourceUrl: from?.url,
+    audioUrl: from?.audioUrl,
     chapterCount: imp.parsed.chapters.length,
     wordCount: imp.parsed.wordCount,
     chapterTitles: imp.parsed.chapters.map((c) => c.title),
@@ -44,3 +46,26 @@ export async function uploadFile(file: File, from?: CatalogLink, onStage?: (s: s
 }
 
 export const ACCEPT = '.epub,.pdf,.txt,application/epub+zip,application/pdf,text/plain';
+
+const EER_DL = (slug: string, format: 'epub' | 'mp3') => `https://english-e-reader.net/download?link=${slug}&format=${format}`;
+
+/** כתובת הקובץ להורדה ישירה מקטלוג, או null אם אין קישור ישיר (רק דף) */
+export function directFileUrl(source: CatalogLink['source'], id: string, url: string): { url: string; name: string } | null {
+  if (source === 'english-e-reader') return { url: EER_DL(id, 'epub'), name: `${id}.epub` };
+  if (/\.pdf$/i.test(url) || url.includes('drive.google.com/uc')) return { url, name: `${id}.pdf` };
+  return null;
+}
+
+export function audioUrlFor(source: CatalogLink['source'], id: string): string | undefined {
+  return source === 'english-e-reader' ? EER_DL(id, 'mp3') : undefined;
+}
+
+/** ייבוא בלחיצה אחת: השרת מוריד את הקובץ מהאתר, והאפליקציה מפענחת ושומרת */
+export async function importFromCatalog(from: CatalogLink, onStage?: (s: string) => void): Promise<BookMeta> {
+  const direct = directFileUrl(from.source, from.id, from.url);
+  if (!direct) throw new Error('לספר הזה אין קישור הורדה ישיר. השתמשו ב"פתיחה באתר".');
+  onStage?.('מוריד מהאתר…');
+  const { fetchExternal } = await import('./api');
+  const buf = await fetchExternal(direct.url);
+  return uploadFile(new File([buf], direct.name), from, onStage);
+}

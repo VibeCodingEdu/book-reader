@@ -37,8 +37,12 @@ def parse_book(url, page):
     label = lv.group(2) if lv else ''
     genres = [html.unescape(g) for g in re.findall(r'href="/genre/([^"]+)"', page)]
     genre = genres[0] if genres else ''
-    desc = ''
-    if lv and author:
+    # תיאור: קודם מה-og:description (נקי), ורק אם אין – מגוף הדף
+    ogd = re.search(r'<meta property="og:description" content="([^"]*)"', page)
+    desc = html.unescape(ogd.group(1)).strip() if ogd else ''
+    if desc:
+        desc = desc[:280].rsplit(' ', 1)[0] + '…' if len(desc) > 280 else desc
+    elif lv and author:
         rest = body[lv.end():]
         j = rest.find(author)
         if j >= 0:
@@ -46,6 +50,8 @@ def parse_book(url, page):
         rest = re.sub(r'^\s*' + re.escape(genre) + r'\s*', '', rest) if genre else rest
         rest = re.sub(r'^[\d\s]+', '', rest)
         desc = rest[:280].rsplit(' ', 1)[0] + '…' if len(rest) > 280 else rest
+        if 'Privacy Policy' in desc or 'intermediate-plus' in desc:
+            desc = ''  # זה טקסט התפריט, לא תיאור
     return {
         'id': url.rstrip('/').rsplit('/', 1)[-1],
         'title': title.strip(),

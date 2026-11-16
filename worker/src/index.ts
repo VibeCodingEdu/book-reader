@@ -4,6 +4,7 @@ import { createMiddleware } from 'hono/factory';
 import type { BookMeta, Chapter } from '../../shared/book';
 import type { TextTranslateRequest, TextTranslateResponse, WordLookupRequest, WordLookupResponse } from '../../shared/translate';
 import { validateUpload } from './upload';
+import { fetchExternal } from './external';
 import { passphraseMatches, signToken, verifyToken, type TokenPayload } from './auth';
 import { importGutenberg, searchGutenberg } from './gutenberg';
 import * as store from './store';
@@ -113,12 +114,29 @@ app.post('/api/books/upload', async (c) => {
     source: meta.source,
     level: meta.level?.slice(0, 10),
     sourceUrl: meta.sourceUrl?.slice(0, 500),
+    audioUrl: meta.audioUrl,
     chapterCount: chapters.length,
     wordCount: Number(meta.wordCount) || 0,
     chapterTitles: chapters.map((ch) => String(ch.title).slice(0, 200)),
   };
   await store.saveBook(c.env.DB, clean, chapters);
   return c.json({ book: clean });
+});
+
+// הורדת קובץ ספר מאתר קטלוג (בלחיצת המשתמש) – מועבר כמו שהוא לאפליקציה, שמפענחת אותו
+app.get('/api/external', async (c) => {
+  const url = c.req.query('url') ?? '';
+  try {
+    const res = await fetchExternal(url);
+    return new Response(res.body, {
+      headers: {
+        'Content-Type': res.headers.get('content-type') ?? 'application/octet-stream',
+        'Cache-Control': 'private, max-age=3600',
+      },
+    });
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : 'ההורדה נכשלה' }, 502);
+  }
 });
 
 app.get('/api/books/:id', async (c) => {
