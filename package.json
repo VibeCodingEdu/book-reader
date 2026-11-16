@@ -1,0 +1,20 @@
+{
+  "name": "book-reader",
+  "private": true,
+  "workspaces": [
+    "app",
+    "worker"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w app",
+    "dev:worker": "npm run dev -w worker",
+    "build": "npm run build -w app",
+    "test": "npm test -w worker && npm test -w app",
+    "typecheck": "npm run typecheck -w app && npm run typecheck -w worker"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true,
+    "workerd@1.20261116.1": true
+  }
+}

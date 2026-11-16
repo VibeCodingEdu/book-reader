@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.wrangler/
+# סודות מקומיים של ה-Worker – לעולם לא נכנסים ל-Git
+.dev.vars
+.env
+.env.*
+!.env.example
+.DS_Store

@@ -1,0 +1,14 @@
+name = "book-reader-api"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+
+[vars]
+# מאילו אתרים מותר לפנות לשרת (האתר ב-GitHub Pages + פיתוח מקומי)
+ALLOWED_ORIGINS = "https://vibecodingedu.github.io,http://localhost:5173"
+
+# סודות – לא כאן! מוגדרים פעם אחת בפקודה:
+#   npx wrangler secret put PASSPHRASE     ← הסיסמה האישית שלך
+#   npx wrangler secret put TOKEN_SECRET   ← מחרוזת אקראית ארוכה
+# לפיתוח מקומי: קובץ worker/.dev.vars (ראה .dev.vars.example)
+
+# באבן דרך 1 יתווספו כאן D1 (מסד נתונים) ו-R2 (אחסון ספרים).

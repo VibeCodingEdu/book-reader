@@ -1,0 +1,4 @@
+# העתק לקובץ בשם .dev.vars (באותה תיקייה) ומלא ערכים לפיתוח מקומי.
+# .dev.vars לא נכנס ל-Git. את הקובץ הזה (.example) לא ממלאים בסודות אמיתיים!
+PASSPHRASE=local-test-passphrase
+TOKEN_SECRET=local-test-secret-change-me
