@@ -9,7 +9,11 @@ export interface BookMeta {
   lang: string; // "en"
   title: string;
   author: string;
-  source: string; // "gutenberg"
+  source: string; // "gutenberg" | "upload" | "english-e-reader" | "learnenglishteam"
+  /** רמת CEFR (מהקטלוג, או הערכה) */
+  level?: string;
+  /** דף הספר במקור, אם יש */
+  sourceUrl?: string;
   chapterCount: number;
   wordCount: number;
   chapterTitles: string[];
@@ -153,13 +157,25 @@ export function parsePlainText(raw: string, lang = 'en'): ParsedBook {
     if (chunk.length) usable.push({ title: '', paras: chunk });
   }
 
+  return chaptersFromRaw(
+    usable.map((c, i) => ({
+      // טקסט לפני הכותרת הראשונה = "פתיחה"; ספר בלי כותרות = "חלק N"
+      title: c.title || (headed.length >= 2 ? 'פתיחה' : `חלק ${i + 1}`),
+      paras: c.paras,
+    })),
+    lang,
+  );
+}
+
+/** פרקים "גולמיים" (כותרת + פסקאות טקסט) → המבנה הסופי עם משפטים וספירת מילים */
+export function chaptersFromRaw(raw: { title: string; paras: string[] }[], lang = 'en'): ParsedBook {
   let wordCount = 0;
-  const out: Chapter[] = usable.map((c, i) => {
+  const chapters: Chapter[] = [];
+  raw.forEach((c, i) => {
     const paragraphs = c.paras.map((p) => splitSentences(p, lang)).filter((s) => s.length);
+    if (!paragraphs.length) return;
     for (const p of paragraphs) for (const s of p) wordCount += countWords(s);
-    // טקסט לפני הכותרת הראשונה = "פתיחה"; ספר בלי כותרות = "חלק N"
-    const title = c.title || (headed.length >= 2 ? 'פתיחה' : `חלק ${i + 1}`);
-    return { title, paragraphs };
+    chapters.push({ title: c.title.trim() || `חלק ${i + 1}`, paragraphs });
   });
-  return { chapters: out.filter((c) => c.paragraphs.length), wordCount };
+  return { chapters, wordCount };
 }

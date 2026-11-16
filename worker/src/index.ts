@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
-import type { WordLookupRequest, WordLookupResponse } from '../../shared/translate';
+import type { BookMeta, Chapter } from '../../shared/book';
+import type { TextTranslateRequest, TextTranslateResponse, WordLookupRequest, WordLookupResponse } from '../../shared/translate';
+import { validateUpload } from './upload';
 import { passphraseMatches, signToken, verifyToken, type TokenPayload } from './auth';
 import { importGutenberg, searchGutenberg } from './gutenberg';
 import * as store from './store';
@@ -96,6 +98,29 @@ app.post('/api/books/import', async (c) => {
   return c.json({ book: meta });
 });
 
+// ספר שפוענח בדפדפן (EPUB / PDF / TXT) – נשמר כמו ספר Gutenberg
+app.post('/api/books/upload', async (c) => {
+  const body = await c.req.json<{ meta?: BookMeta; chapters?: Chapter[] }>();
+  const err = validateUpload(body.meta, body.chapters);
+  if (err) return c.json({ error: err }, 400);
+  const meta = body.meta!;
+  const chapters = body.chapters!;
+  const clean: BookMeta = {
+    id: meta.id,
+    lang: meta.lang || 'en',
+    title: meta.title.slice(0, 300),
+    author: (meta.author ?? '').slice(0, 300),
+    source: meta.source,
+    level: meta.level?.slice(0, 10),
+    sourceUrl: meta.sourceUrl?.slice(0, 500),
+    chapterCount: chapters.length,
+    wordCount: Number(meta.wordCount) || 0,
+    chapterTitles: chapters.map((ch) => String(ch.title).slice(0, 200)),
+  };
+  await store.saveBook(c.env.DB, clean, chapters);
+  return c.json({ book: clean });
+});
+
 app.get('/api/books/:id', async (c) => {
   const book = await store.getBook(c.env.DB, c.req.param('id'));
   return book ? c.json({ book }) : c.json({ error: 'הספר לא נמצא' }, 404);
@@ -171,6 +196,36 @@ app.post('/api/translate/word', async (c) => {
   const { result, usd } = await engine.lookupWord({ ...req, lang });
   await Promise.all([store.putCachedLookup(c.env.DB, key, engineId, result), store.addSpend(c.env.DB, engineId, usd)]);
   return c.json({ result, engine: engineId, cached: false } satisfies WordLookupResponse);
+});
+
+app.post('/api/translate/text', async (c) => {
+  const req = await c.req.json<TextTranslateRequest>();
+  if (!req.text?.trim() || req.text.length > 3000 || (req.context ?? '').length > 6000) {
+    return c.json({ error: 'בקשה לא תקינה' }, 400);
+  }
+  const engineId = req.engine || c.env.DEFAULT_ENGINE || 'claude-haiku';
+  const lang = req.lang || 'en';
+  const key = await store.cacheKey(['text', engineId, lang, req.text.trim(), req.context ?? '']);
+  const cached = await store.getCachedLookup(c.env.DB, key);
+  if (cached) return c.json({ result: cached, engine: engineId, cached: true } as unknown as TextTranslateResponse);
+
+  const cap = Number(c.env.MONTHLY_CAP_USD ?? '5');
+  const { total } = await store.monthSpend(c.env.DB);
+  if (total >= cap) return c.json({ error: `הגעת לתקרת ההוצאה החודשית (${cap}$)` }, 402);
+
+  let engine;
+  try {
+    engine = getEngine(engineId, c.env);
+  } catch (e) {
+    if (e instanceof EngineUnavailable) return c.json({ error: e.message }, 503);
+    throw e;
+  }
+  const { result, usd } = await engine.translateText({ ...req, lang });
+  await Promise.all([
+    store.putCachedLookup(c.env.DB, key, engineId, result as never),
+    store.addSpend(c.env.DB, engineId, usd),
+  ]);
+  return c.json({ result, engine: engineId, cached: false } satisfies TextTranslateResponse);
 });
 
 export default app;

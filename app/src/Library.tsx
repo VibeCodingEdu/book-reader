@@ -1,8 +1,12 @@
-import { useEffect, useState } from 'preact/hooks';
-import type { BookMeta } from '../../shared/book';
+import { useEffect, useMemo, useState } from 'preact/hooks';
+import { parseSentenceId, type BookMeta } from '../../shared/book';
 import { deleteBook, importBook, listBooks, searchGutenberg, type SearchResult } from './api';
+import { levelRank } from './levels';
 import { loadLocalPosition } from './position';
-import { parseSentenceId } from '../../shared/book';
+import { ACCEPT, uploadFile } from './upload';
+
+type MySort = 'recent' | 'title' | 'level';
+const SORT_KEY = 'reader.librarySort';
 
 // ספרים קלים יחסית ברשות הציבור, לפי רמה (הערכה גסה; אלה גרסאות מקוריות, לא מפושטות).
 const SUGGESTIONS = [
@@ -15,8 +19,22 @@ const SUGGESTIONS = [
   { id: 501, title: 'The Story of Doctor Dolittle', author: 'Hugh Lofting', level: 'B1', note: 'ספר מלא' },
 ];
 
-export function Library({ onOpen, onOpenSettings }: { onOpen: (b: BookMeta) => void; onOpenSettings: () => void }) {
+interface Props {
+  onOpen: (b: BookMeta) => void;
+  onOpenSettings: () => void;
+  onOpenCatalog: (have: Set<string>) => void;
+}
+
+export function Library({ onOpen, onOpenSettings, onOpenCatalog }: Props) {
   const [books, setBooks] = useState<BookMeta[] | null>(null);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [mySort, setMySort] = useState<MySort>(() => {
+    try {
+      return (localStorage.getItem(SORT_KEY) as MySort) || 'recent';
+    } catch {
+      return 'recent';
+    }
+  });
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[] | null>(null);
@@ -66,6 +84,29 @@ export function Library({ onOpen, onOpenSettings }: { onOpen: (b: BookMeta) => v
 
   const have = new Set(books?.map((b) => b.id));
 
+  const sorted = useMemo(() => {
+    if (!books) return null;
+    const list = [...books];
+    if (mySort === 'title') list.sort((a, b) => a.title.localeCompare(b.title, 'en', { sensitivity: 'base' }));
+    if (mySort === 'level') list.sort((a, b) => levelRank(a.level) - levelRank(b.level));
+    return list;
+  }, [books, mySort]);
+
+  const onUpload = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    setUploading('מתחיל…');
+    try {
+      const book = await uploadFile(file, undefined, setUploading);
+      await refresh();
+      onOpen(book);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'ההעלאה נכשלה');
+    } finally {
+      setUploading(null);
+    }
+  };
+
   return (
     <main class="page">
       <div class="row top-row">
@@ -87,15 +128,37 @@ export function Library({ onOpen, onOpenSettings }: { onOpen: (b: BookMeta) => v
           הספרים שלי
         </h2>
         {books === null && !error && <p class="muted">טוען…</p>}
-        {books?.length === 0 && <p class="muted">עוד אין ספרים. אפשר לבחור הצעה או לחפש למטה.</p>}
+        {books?.length === 0 && <p class="muted">עוד אין ספרים. אפשר לבחור הצעה, לחפש או להעלות קובץ.</p>}
+        {books && books.length > 1 && (
+          <div class="row sort-row">
+            <select
+              aria-label="מיון הספרים שלי"
+              value={mySort}
+              onChange={(e) => {
+                const v = e.currentTarget.value as MySort;
+                setMySort(v);
+                try {
+                  localStorage.setItem(SORT_KEY, v);
+                } catch {
+                  /* ignore */
+                }
+              }}
+            >
+              <option value="recent">מיון: נוסף לאחרונה</option>
+              <option value="title">מיון: שם (א-ב)</option>
+              <option value="level">מיון: רמה</option>
+            </select>
+          </div>
+        )}
         <ul class="book-list">
-          {books?.map((b) => {
+          {sorted?.map((b) => {
             const pos = loadLocalPosition(b.id);
             const ch = pos ? parseSentenceId(pos.sentenceId)?.c : undefined;
             return (
               <li key={b.id} class="book-card">
                 <button class="book-open" onClick={() => onOpen(b)}>
                   <span class="book-title en" lang="en">
+                    {b.level && <span class="level inline">{b.level}</span>}
                     {b.title}
                   </span>
                   <span class="book-author en" lang="en">
@@ -122,6 +185,26 @@ export function Library({ onOpen, onOpenSettings }: { onOpen: (b: BookMeta) => v
           })}
         </ul>
       </section>
+
+      <div class="add-row">
+        <button class="secondary" onClick={() => onOpenCatalog(have)}>
+          📚 קטלוגים: ספרים לפי רמה
+        </button>
+        <label class={`btn secondary ${uploading ? 'disabled' : ''}`}>
+          {uploading ?? 'העלאת קובץ מהמכשיר: EPUB, PDF או TXT'}
+          <input
+            type="file"
+            accept={ACCEPT}
+            hidden
+            disabled={!!uploading}
+            onChange={(e) => {
+              const f = e.currentTarget.files?.[0];
+              e.currentTarget.value = '';
+              onUpload(f);
+            }}
+          />
+        </label>
+      </div>
 
       <section class="card" aria-labelledby="h-add">
         <h2 id="h-add">הוספת ספר מ-Project Gutenberg</h2>

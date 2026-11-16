@@ -300,3 +300,48 @@ select {
 }
 :root[data-theme='eink'] .level { border-color: #000; color: #000; }
 :root[data-theme='eink'] .suggestion { border-color: #000; }
+
+/* ---------- קטלוגים והעלאה ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; text-align: center;
+  min-height: var(--tap); padding: 8px 16px; font-weight: 600; border-radius: 8px;
+  border: var(--border-w) solid var(--accent); background: var(--accent); color: var(--accent-fg);
+  text-decoration: none; cursor: pointer;
+}
+.btn.secondary { background: transparent; color: var(--accent); }
+.btn.disabled { opacity: 0.6; pointer-events: none; }
+:root[data-theme='eink'] .btn.disabled { opacity: 1; border-style: dashed; }
+.add-row { display: grid; gap: 8px; margin: 0 0 16px; }
+.sort-row { margin-bottom: 8px; }
+.level.inline { display: inline-block; min-width: 0; margin-inline-end: 8px; vertical-align: middle; }
+.book-title .level.inline { font-size: 0.75rem; }
+.filters { display: grid; gap: 8px; margin: 8px 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  min-width: 52px; min-height: 40px; padding: 4px 10px; font-weight: 600;
+  background: transparent; color: var(--fg); border-color: var(--line);
+}
+.chip[aria-pressed='true'] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.catalog-list { list-style: none; padding: 0; margin: 0; }
+.catalog-item { border-top: 1px solid var(--line); }
+:root[data-theme='eink'] .catalog-item { border-top: 2px solid #000; }
+.catalog-row {
+  width: 100%; display: flex; align-items: center; gap: 10px; text-align: start; font-weight: 400;
+  background: transparent; color: var(--fg); border: none; padding: 10px 2px;
+}
+.catalog-row .grow { display: flex; flex-direction: column; }
+.catalog-detail { padding: 0 2px 12px; }
+.catalog-detail .row { gap: 8px; }
+.catalog-detail .btn { flex: 1; }
+
+/* סימון קטע ותרגום */
+.sheet-word.passage { font-size: 1.05rem; font-weight: 500; line-height: 1.4; max-height: 7.5em; overflow-y: auto; }
+.passage-tr { font-size: 1.2rem; font-weight: 600; line-height: 1.5; }
+.sheet-note { margin: 0 0 8px; color: var(--muted); font-size: 0.95rem; }
+.sheet-hint { margin: 8px 0 0; color: var(--muted); }
+.translate-btn { width: 100%; margin: 8px 0; }
+.toggle { display: flex; gap: 12px; align-items: flex-start; margin: 12px 0; cursor: pointer; }
+.toggle input { width: 24px; height: 24px; margin-top: 2px; flex: none; accent-color: var(--accent); }
+.block { display: block; }
+/* קטע מסומן ב-E-ink: קו תחתון עבה רציף במקום מסגרת לכל מילה */
+:root[data-theme='eink'] .w.hl.hlr { outline: none; text-decoration: underline 3px solid #000; text-underline-offset: 4px; }

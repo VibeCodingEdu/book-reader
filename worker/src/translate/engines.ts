@@ -4,8 +4,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
-import type { WordLookup, WordLookupRequest } from '../../../shared/translate';
-import { WORD_SYSTEM_PROMPT, wordUserMessage } from './prompt';
+import type { TextTranslateRequest, TextTranslation, WordLookup, WordLookupRequest } from '../../../shared/translate';
+import { TEXT_SYSTEM_PROMPT, textUserMessage, WORD_SYSTEM_PROMPT, wordUserMessage } from './prompt';
 
 export interface EngineResult {
   result: WordLookup;
@@ -15,7 +15,10 @@ export interface EngineResult {
 export interface Engine {
   id: string;
   lookupWord(req: WordLookupRequest): Promise<EngineResult>;
+  translateText(req: TextTranslateRequest): Promise<{ result: TextTranslation; usd: number }>;
 }
+
+export const TextTranslationSchema = z.object({ translation: z.string(), note: z.string() });
 
 export interface EngineKeys {
   ANTHROPIC_API_KEY?: string;
@@ -59,6 +62,21 @@ function claudeEngine(apiKey: string): Engine {
       const usd = response.usage.input_tokens * HAIKU_IN + response.usage.output_tokens * HAIKU_OUT;
       return { result: response.parsed_output, usd };
     },
+    async translateText(req) {
+      const response = await client.messages.parse({
+        model: 'claude-haiku-5-5',
+        max_tokens: 2048,
+        thinking: { type: 'disabled' },
+        system: TEXT_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: textUserMessage(req.text, req.context) }],
+        output_config: { effort: 'low', format: zodOutputFormat(TextTranslationSchema) },
+      });
+      if (response.stop_reason === 'refusal' || !response.parsed_output) {
+        throw new Error('המנוע לא החזיר תשובה תקינה');
+      }
+      const usd = response.usage.input_tokens * HAIKU_IN + response.usage.output_tokens * HAIKU_OUT;
+      return { result: response.parsed_output, usd };
+    },
   };
 }
 
@@ -89,36 +107,54 @@ const GEMINI_SCHEMA = {
   propertyOrdering: ['unit', 'unitType', 'lemma', 'pos', 'ipa', 'contextMeaning', 'otherMeanings'],
 };
 
+async function geminiJson(
+  apiKey: string,
+  system: string,
+  user: string,
+  schema: object,
+): Promise<{ data: unknown; usd: number }> {
+  const res = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: 'user', parts: [{ text: user }] }],
+        generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0 },
+      }),
+    },
+  );
+  if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const data = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+  };
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
+  const u = data.usageMetadata ?? {};
+  return { data: JSON.parse(text), usd: (u.promptTokenCount ?? 0) * FL_IN + (u.candidatesTokenCount ?? 0) * FL_OUT };
+}
+
+const GEMINI_TEXT_SCHEMA = {
+  type: 'OBJECT',
+  properties: { translation: { type: 'STRING' }, note: { type: 'STRING' } },
+  required: ['translation', 'note'],
+};
+
 function geminiEngine(apiKey: string): Engine {
   return {
     id: 'gemini-flash-lite',
     async lookupWord(req) {
-      const res = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: WORD_SYSTEM_PROMPT }] },
-            contents: [{ role: 'user', parts: [{ text: wordUserMessage(req) }] }],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              responseSchema: GEMINI_SCHEMA,
-              temperature: 0,
-            },
-          }),
-        },
-      );
-      if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 200)}`);
-      const data = (await res.json()) as {
-        candidates?: { content?: { parts?: { text?: string }[] } }[];
-        usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
-      };
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-      const parsed = WordLookupSchema.safeParse(JSON.parse(text || '{}'));
+      const { data, usd } = await geminiJson(apiKey, WORD_SYSTEM_PROMPT, wordUserMessage(req), GEMINI_SCHEMA);
+      const parsed = WordLookupSchema.safeParse(data);
       if (!parsed.success) throw new Error('המנוע לא החזיר תשובה תקינה');
-      const u = data.usageMetadata ?? {};
-      return { result: parsed.data, usd: (u.promptTokenCount ?? 0) * FL_IN + (u.candidatesTokenCount ?? 0) * FL_OUT };
+      return { result: parsed.data, usd };
+    },
+    async translateText(req) {
+      const { data, usd } = await geminiJson(apiKey, TEXT_SYSTEM_PROMPT, textUserMessage(req.text, req.context), GEMINI_TEXT_SCHEMA);
+      const parsed = TextTranslationSchema.safeParse(data);
+      if (!parsed.success) throw new Error('המנוע לא החזיר תשובה תקינה');
+      return { result: parsed.data, usd };
     },
   };
 }

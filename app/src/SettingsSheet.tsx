@@ -110,6 +110,14 @@ export function SettingsSheet({ settings: s, session, onChange, onClose, onLogou
           </select>
         </label>
 
+        <label class="toggle">
+          <input type="checkbox" checked={s.autoTranslate} onChange={(e) => set({ autoTranslate: e.currentTarget.checked })} />
+          <span>
+            תרגום אוטומטי בלחיצה על מילה
+            <span class="muted small block">כשכבוי: הלחיצה מסמנת ומאפשרת השמעה, ומתרגמים רק בכפתור "תרגם".</span>
+          </span>
+        </label>
+
         {spend && (
           <p class="muted small">
             הוצאה החודש: {spend.total.toFixed(3)}$ מתוך {spend.cap}$ ·{' '}

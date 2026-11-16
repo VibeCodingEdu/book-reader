@@ -11,6 +11,7 @@ import {
   type Session,
 } from './api';
 import { loadSettings, normalizeSettings, saveSettings, type DeviceSettings } from './deviceSettings';
+import { Catalog } from './Catalog';
 import { Library } from './Library';
 import { Reader } from './Reader';
 import { SettingsSheet } from './SettingsSheet';
@@ -26,6 +27,7 @@ export function App() {
   const [settings, setSettings] = useState<DeviceSettings>(loadSettings);
   const [session, setSession] = useState<Session | null>(loadSession);
   const [book, setBook] = useState<BookMeta | null>(null);
+  const [catalog, setCatalog] = useState<Set<string> | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => setUnauthorizedHandler(() => setSession(null)), []);
@@ -67,8 +69,17 @@ export function App() {
     <>
       {book ? (
         <Reader book={book} settings={settings} onBack={() => setBook(null)} onOpenSettings={() => setShowSettings(true)} />
+      ) : catalog ? (
+        <Catalog
+          have={catalog}
+          onBack={() => setCatalog(null)}
+          onUploaded={(b) => {
+            setCatalog(null);
+            setBook(b);
+          }}
+        />
       ) : (
-        <Library onOpen={setBook} onOpenSettings={() => setShowSettings(true)} />
+        <Library onOpen={setBook} onOpenSettings={() => setShowSettings(true)} onOpenCatalog={setCatalog} />
       )}
       {showSettings && (
         <SettingsSheet

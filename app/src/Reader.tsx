@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { memo } from 'preact/compat';
 import { parseSentenceId, sentenceId, type BookMeta, type Chapter } from '../../shared/book';
-import type { WordLookup } from '../../shared/translate';
-import { ApiError, getChapter, lookupWord } from './api';
+import { ApiError, getChapter, lookupWord, translateText } from './api';
 import type { DeviceSettings } from './deviceSettings';
 import {
   anchorForPage,
@@ -14,7 +13,7 @@ import {
   type SentenceStart,
 } from './paging';
 import { createPositionSaver, resolveStartPosition } from './position';
-import { WordSheet, type Selection } from './WordSheet';
+import { WordSheet, type RangeSel, type RangeStartSel, type Selection, type WordSel } from './WordSheet';
 
 interface Props {
   book: BookMeta;
@@ -191,7 +190,7 @@ export function Reader({ book, settings, onBack, onOpenSettings }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [next, prev]);
 
-  // ---------- נגיעות: החלקה, שוליים, מילה ----------
+  // ---------- נגיעות: החלקה, שוליים, מילה, לחיצה ארוכה ----------
   const touch = useRef<{ x: number; y: number; t: number } | null>(null);
   const swiped = useRef(false);
 
@@ -214,20 +213,55 @@ export function Reader({ book, settings, onBack, onOpenSettings }: Props) {
     }
   };
 
+  // לחיצה ארוכה על מילה = תחילת סימון קטע (בלי גרירה, כדי לא להתנגש בדפדוף)
+  const press = useRef<{ timer: ReturnType<typeof setTimeout>; x: number; y: number } | null>(null);
+  const longPressed = useRef(false);
+  const cancelPress = () => {
+    if (press.current) clearTimeout(press.current.timer);
+    press.current = null;
+  };
+  const onPointerDown = (e: PointerEvent) => {
+    const w = (e.target as HTMLElement).closest<HTMLElement>('.w');
+    longPressed.current = false;
+    if (!w) return;
+    cancelPress();
+    press.current = {
+      x: e.clientX,
+      y: e.clientY,
+      timer: setTimeout(() => {
+        press.current = null;
+        longPressed.current = true;
+        const sid = w.closest<HTMLElement>('[data-sid]')!.dataset.sid!;
+        reqId.current++;
+        setSel({ kind: 'range-start', sid, offset: Number(w.dataset.o), word: w.textContent ?? '' });
+        navigator.vibrate?.(15);
+      }, 450),
+    };
+  };
+  const onPointerMove = (e: PointerEvent) => {
+    const p = press.current;
+    if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 10) cancelPress();
+  };
+
+  const wordInfo = (w: HTMLElement) => {
+    const sid = w.closest<HTMLElement>('[data-sid]')!.dataset.sid!;
+    const pos = parseSentenceId(sid)!;
+    return { sid, sentence: chapter!.paragraphs[pos.p][pos.s], word: w.textContent ?? '', offset: Number(w.dataset.o) };
+  };
+
   const onClick = (e: MouseEvent) => {
     if (swiped.current) {
       swiped.current = false;
       return;
     }
-    const target = e.target as HTMLElement;
-    const w = target.closest<HTMLElement>('.w');
+    if (longPressed.current) {
+      longPressed.current = false; // ה-click שמגיע אחרי לחיצה ארוכה
+      return;
+    }
+    const w = (e.target as HTMLElement).closest<HTMLElement>('.w');
     if (w && chapter) {
-      const sEl = w.closest<HTMLElement>('[data-sid]')!;
-      const sid = sEl.dataset.sid!;
-      const pos = parseSentenceId(sid)!;
-      const sentence = chapter.paragraphs[pos.p][pos.s];
-      const offset = Number(w.dataset.o);
-      openLookup(sid, sentence, w.textContent ?? '', offset);
+      if (sel?.kind === 'range-start') finishRange(sel, w);
+      else openWord(wordInfo(w));
       return;
     }
     // לא על מילה: נגיעה בשוליים מדפדפת
@@ -241,31 +275,99 @@ export function Reader({ book, settings, onBack, onOpenSettings }: Props) {
     else if (x > 0.7) next();
   };
 
-  // ---------- תרגום מילה ----------
+  // ---------- תרגום ----------
   const reqId = useRef(0);
-  const openLookup = async (sid: string, sentence: string, word: string, offset: number) => {
+
+  const runWord = async (base: WordSel) => {
     const id = ++reqId.current;
-    setSel({ sid, sentence, word, offset, state: 'loading' });
+    setSel({ ...base, state: 'loading' } as WordSel);
     try {
-      const res = await lookupWord({ sentence, word, offset, lang: book.lang, engine: settings.engine || undefined });
-      if (id !== reqId.current) return;
-      setSel({ sid, sentence, word, offset, state: 'done', result: res.result, engine: res.engine, cached: res.cached });
+      const res = await lookupWord({
+        sentence: base.sentence,
+        word: base.word,
+        offset: base.offset,
+        lang: book.lang,
+        engine: settings.engine || undefined,
+      });
+      if (id === reqId.current) setSel({ ...base, state: 'done', result: res.result, engine: res.engine, cached: res.cached } as WordSel);
     } catch (e) {
-      if (id !== reqId.current) return;
-      setSel({ sid, sentence, word, offset, state: 'error', error: e instanceof Error ? e.message : 'שגיאה' });
+      if (id === reqId.current) setSel({ ...base, state: 'error', error: e instanceof Error ? e.message : 'שגיאה' } as WordSel);
     }
   };
 
-  // סימון המילה/הביטוי בטקסט (ישירות ב-DOM, בלי לרנדר מחדש את כל הפרק)
+  const runRange = async (base: RangeSel) => {
+    const id = ++reqId.current;
+    setSel({ ...base, state: 'loading' } as RangeSel);
+    try {
+      const res = await translateText({ text: base.text, context: base.context, lang: book.lang, engine: settings.engine || undefined });
+      if (id === reqId.current) setSel({ ...base, state: 'done', result: res.result, engine: res.engine, cached: res.cached } as RangeSel);
+    } catch (e) {
+      if (id === reqId.current) setSel({ ...base, state: 'error', error: e instanceof Error ? e.message : 'שגיאה' } as RangeSel);
+    }
+  };
+
+  const openWord = (info: { sid: string; sentence: string; word: string; offset: number }) => {
+    const base = { kind: 'word', ...info, state: 'idle' } as WordSel;
+    if (settings.autoTranslate) runWord(base);
+    else {
+      reqId.current++;
+      setSel(base);
+    }
+  };
+
+  const finishRange = (start: RangeStartSel, endEl: HTMLElement) => {
+    const root = pagesRef.current;
+    const startEl = root?.querySelector<HTMLElement>(`[data-sid="${start.sid}"] .w[data-o="${start.offset}"]`);
+    if (!root || !startEl || !chapter) return;
+    const all = Array.from(root.querySelectorAll<HTMLElement>('.w'));
+    let i = all.indexOf(startEl);
+    let j = all.indexOf(endEl);
+    if (i > j) [i, j] = [j, i];
+    const words = all.slice(i, Math.min(j, i + 299) + 1); // עד 300 מילים
+    const range = document.createRange();
+    range.setStartBefore(words[0]);
+    range.setEndAfter(words[words.length - 1]);
+    const text = range.toString().replace(/\s+/g, ' ').trim();
+    const marks = words.map((w) => ({ sid: w.closest<HTMLElement>('[data-sid]')!.dataset.sid!, o: Number(w.dataset.o) }));
+    const sids = [...new Set(marks.map((m) => m.sid))];
+    const context = sids
+      .map((sid) => {
+        const p = parseSentenceId(sid)!;
+        return chapter.paragraphs[p.p][p.s];
+      })
+      .join(' ');
+    const base = { kind: 'range', text, context, marks, state: 'idle' } as RangeSel;
+    if (words.length === 1) {
+      openWord(wordInfo(words[0])); // לחיצה על אותה מילה – כמו מילה רגילה
+      return;
+    }
+    if (settings.autoTranslate) runRange(base);
+    else {
+      reqId.current++;
+      setSel(base);
+    }
+  };
+
+  const translateNow = () => {
+    if (sel?.kind === 'word') runWord(sel);
+    else if (sel?.kind === 'range') runRange(sel);
+  };
+
+  // סימון בטקסט (ישירות ב-DOM, בלי לרנדר מחדש את כל הפרק)
   useEffect(() => {
     const el = pagesRef.current;
     if (!el) return;
-    el.querySelectorAll('.w.hl').forEach((n) => n.classList.remove('hl'));
+    el.querySelectorAll('.w.hl').forEach((n) => n.classList.remove('hl', 'hlr'));
     if (!sel) return;
-    const offsets =
-      sel.state === 'done' ? unitTokenOffsets(tokenize(sel.sentence), sel.offset, (sel.result as WordLookup).unit) : [sel.offset];
-    const sEl = el.querySelector(`[data-sid="${sel.sid}"]`);
-    for (const o of offsets) sEl?.querySelector(`.w[data-o="${o}"]`)?.classList.add('hl');
+    let marks: { sid: string; o: number }[];
+    if (sel.kind === 'range') marks = sel.marks;
+    else if (sel.kind === 'range-start') marks = [{ sid: sel.sid, o: sel.offset }];
+    else {
+      const offsets = sel.state === 'done' ? unitTokenOffsets(tokenize(sel.sentence), sel.offset, sel.result.unit) : [sel.offset];
+      marks = offsets.map((o) => ({ sid: sel.sid, o }));
+    }
+    const cls = sel.kind === 'range' ? ['hl', 'hlr'] : ['hl'];
+    for (const m of marks) el.querySelector(`[data-sid="${m.sid}"] .w[data-o="${m.o}"]`)?.classList.add(...cls);
   }, [sel]);
 
   // ---------- תצוגה ----------
@@ -314,6 +416,11 @@ export function Reader({ book, settings, onBack, onOpenSettings }: Props) {
         ref={viewportRef}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={cancelPress}
+        onPointerCancel={cancelPress}
+        onContextMenu={(e) => e.preventDefault()}
         onClick={onClick}
       >
         {error && (
@@ -356,7 +463,7 @@ export function Reader({ book, settings, onBack, onOpenSettings }: Props) {
         </button>
       </footer>
 
-      {sel && <WordSheet sel={sel} onClose={() => setSel(null)} />}
+      {sel && <WordSheet sel={sel} onClose={() => setSel(null)} onTranslate={translateNow} />}
     </div>
   );
 }

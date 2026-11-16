@@ -7,3 +7,6 @@ dist/
 .env.*
 !.env.example
 .DS_Store
+
+# מחוון התקדמות של בניית קטלוג
+*.progress

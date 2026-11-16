@@ -34,3 +34,15 @@ export function markTappedWord(req: Pick<WordLookupRequest, 'sentence' | 'word' 
 export function wordUserMessage(req: WordLookupRequest): string {
   return `Sentence: ${markTappedWord(req)}`;
 }
+
+export const TEXT_SYSTEM_PROMPT = `You translate English to Hebrew for a native Hebrew speaker reading an English book.
+
+The user gives you a passage they selected (from a few words up to a paragraph) and the surrounding sentence(s) for context.
+
+Return:
+- translation: a natural, accurate modern Hebrew translation of ONLY the selected passage, without niqqud. Use the context to choose the right meaning, tense and gender. If the selection is a fragment, translate it as a fragment (do not complete it into a full sentence).
+- note: a short Hebrew note (max 20 words) ONLY when useful: an idiom or phrasal verb inside the passage, a cultural reference, or wordplay. Otherwise an empty string.`;
+
+export function textUserMessage(text: string, context: string): string {
+  return `Context: ${context}\n\nSelected passage: ${text}`;
+}

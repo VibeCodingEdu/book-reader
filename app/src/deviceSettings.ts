@@ -10,6 +10,8 @@ export interface DeviceSettings {
   lineHeight: number; // 1.2–2.2
   margin: number; // px בצדדים
   engine: string; // מנוע התרגום
+  /** לחיצה על מילה מתרגמת מיד (אחרת: רק אחרי לחיצה על "תרגם") */
+  autoTranslate: boolean;
   updatedAt: number;
 }
 
@@ -20,6 +22,7 @@ export const DEFAULT_SETTINGS: DeviceSettings = {
   lineHeight: 1.6,
   margin: 20,
   engine: '',
+  autoTranslate: true,
   updatedAt: 0,
 };
 
@@ -39,6 +42,7 @@ export function normalizeSettings(obj: Partial<DeviceSettings> | null | undefine
     lineHeight: num(o.lineHeight, 1.2, 2.2, DEFAULT_SETTINGS.lineHeight),
     margin: num(o.margin, 4, 64, DEFAULT_SETTINGS.margin),
     engine: typeof o.engine === 'string' ? o.engine : '',
+    autoTranslate: typeof o.autoTranslate === 'boolean' ? o.autoTranslate : true,
     updatedAt: typeof o.updatedAt === 'number' ? o.updatedAt : 0,
   };
 }

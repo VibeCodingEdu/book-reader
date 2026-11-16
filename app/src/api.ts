@@ -1,5 +1,5 @@
 import type { BookMeta, Chapter } from '../../shared/book';
-import type { WordLookupRequest, WordLookupResponse } from '../../shared/translate';
+import type { TextTranslateRequest, TextTranslateResponse, WordLookupRequest, WordLookupResponse } from '../../shared/translate';
 import { WORKER_URL } from './config';
 import { idbGet, idbSet } from './idb';
 
@@ -112,6 +112,11 @@ export const importBook = (gutenbergId: number, hint?: { title: string; author: 
     body: JSON.stringify({ gutenbergId, ...hint }),
   }).then((r) => r.book);
 
+export const uploadBook = (meta: BookMeta, chapters: Chapter[]) =>
+  request<{ book: BookMeta }>('/api/books/upload', { method: 'POST', body: JSON.stringify({ meta, chapters }) }).then(
+    (r) => r.book,
+  );
+
 export const deleteBook = (id: string) => request(`/api/books/${encodeURIComponent(id)}`, { method: 'DELETE' });
 
 /** פרק – קודם מהמטמון המקומי (IndexedDB), אחר כך מהשרת */
@@ -153,6 +158,9 @@ export const putServerSettings = (data: unknown, updatedAt: number) =>
 
 export const lookupWord = (req: WordLookupRequest) =>
   request<WordLookupResponse>('/api/translate/word', { method: 'POST', body: JSON.stringify(req) });
+
+export const translateText = (req: TextTranslateRequest) =>
+  request<TextTranslateResponse>('/api/translate/text', { method: 'POST', body: JSON.stringify(req) });
 
 export interface Spend {
   month: string;

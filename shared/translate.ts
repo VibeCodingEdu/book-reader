@@ -40,3 +40,27 @@ export const ENGINES = [
 export function stripNiqqud(s: string): string {
   return s.replace(/[֑-ׇ]/g, '');
 }
+
+// ---------- תרגום קטע (כמה מילים עד פסקה) ----------
+
+export interface TextTranslation {
+  /** תרגום טבעי לעברית של הקטע שסומן */
+  translation: string;
+  /** הסבר קצר כשהקטע הוא ניב/ביטוי או שיש בו משהו לא מובן מאליו (אופציונלי) */
+  note: string;
+}
+
+export interface TextTranslateRequest {
+  /** הקטע שסומן */
+  text: string;
+  /** המשפט/ים שהקטע נמצא בהם – להקשר */
+  context: string;
+  lang: string;
+  engine?: string;
+}
+
+export interface TextTranslateResponse {
+  result: TextTranslation;
+  engine: string;
+  cached: boolean;
+}
