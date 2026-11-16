@@ -70,6 +70,22 @@ jobs:
           cache: npm
       - run: npm ci
         if: env.CLOUDFLARE_API_TOKEN != ''
+      # פעם ראשונה בלבד: רישום כתובת חינמית <שם>.workers.dev לחשבון (אם עוד אין)
+      - name: Ensure workers.dev subdomain
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        env:
+          ACCOUNT_ID: b41762f2a303bb199c16198f09ec43ed
+          WANT: ${{ vars.WORKERS_SUBDOMAIN || 'vibecodingedu' }}
+        run: |
+          API="https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/workers/subdomain"
+          CUR=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API" | jq -r '.result.subdomain // empty')
+          if [ -z "$CUR" ]; then
+            echo "Registering subdomain: $WANT"
+            curl -s -X PUT -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+              --data "{\"subdomain\":\"$WANT\"}" "$API" | jq '{success, errors, result}'
+          else
+            echo "Subdomain already set: $CUR"
+          fi
       - run: npx wrangler deploy
         if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: worker
