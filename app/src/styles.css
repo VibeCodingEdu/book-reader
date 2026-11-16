@@ -129,6 +129,8 @@ button {
 }
 button.secondary { background: transparent; color: var(--accent); }
 button:disabled { opacity: 0.5; cursor: default; }
+/* ב-E-ink אין אפור חלש: כפתור כבוי = מסגרת מקווקו על רקע לבן */
+:root[data-theme='eink'] button:disabled { opacity: 1; background: #fff; color: #000; border-style: dashed; }
 button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }

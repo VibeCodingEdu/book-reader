@@ -26,14 +26,15 @@
 - **GitHub → Settings → Pages**: Source = *GitHub Actions*.
 - **GitHub → Settings → Secrets and variables → Actions**:
   - משתנה (Variable) `WORKER_URL` = כתובת ה-Worker, למשל `https://book-reader-api.<שם>.workers.dev`
-  - סוד (Secret) `CLOUDFLARE_API_TOKEN` = טוקן מ-Cloudflare עם הרשאת *Edit Cloudflare Workers*
-- **סודות ה-Worker** (פעם אחת, מתיקיית `worker`):
-  ```bash
-  npx wrangler secret put PASSPHRASE
-  ```
-  ```bash
-  npx wrangler secret put TOKEN_SECRET
-  ```
+  - סוד (Secret) `CLOUDFLARE_API_TOKEN` = טוקן מותאם מ-Cloudflare, על החשבון בלבד, עם ההרשאות:
+    Workers Scripts: Edit, D1: Edit, Workers R2 Storage: Edit, Account Settings: Read
+  - סוד `PASSPHRASE` = הסיסמה האישית לאפליקציה
+  - סוד `TOKEN_SECRET` = מחרוזת אקראית ארוכה. ליצירה והעתקה בלי שתוצג על המסך:
+    ```bash
+    openssl rand -base64 32 | tr -d '\n' | pbcopy
+    ```
+  תהליך הפריסה מעביר את PASSPHRASE ו-TOKEN_SECRET לכספת של Cloudflare.
+  החלפת TOKEN_SECRET מנתקת את כל המכשירים.
 
 ## הרצה מקומית (לפיתוח בלבד)
 
