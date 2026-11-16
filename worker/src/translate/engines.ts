@@ -80,10 +80,12 @@ function claudeEngine(apiKey: string): Engine {
   };
 }
 
-// ---------- Gemini 2.5 Flash-Lite ----------
-// מחירים (לפי אתרי השוואה, לא אומת): 0.10$ למיליון קלט, 0.40$ לפלט.
-const FL_IN = 0.1 / 1e6;
-const FL_OUT = 0.4 / 1e6;
+// ---------- Gemini Flash-Lite ----------
+// gemini-2.5-flash-lite כבר לא זמין למשתמשים חדשים (נובמבר 2026) – גוגל ממליצה על 3.5.
+// מחירים משוערים (לא אומתו בדף הרשמי): 0.30$ למיליון קלט, 2.50$ לפלט. בשכבה החינמית – 0$.
+const FL_IN = 0.3 / 1e6;
+const FL_OUT = 2.5 / 1e6;
+export const GEMINI_MODEL = 'gemini-3.5-flash-lite';
 
 const GEMINI_SCHEMA = {
   type: 'OBJECT',
@@ -114,7 +116,7 @@ async function geminiJson(
   schema: object,
 ): Promise<{ data: unknown; usd: number }> {
   const res = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },

@@ -33,7 +33,7 @@ export interface WordLookupResponse {
 
 export const ENGINES = [
   { id: 'claude-haiku', label: 'Claude Haiku 5.5' },
-  { id: 'gemini-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
+  { id: 'gemini-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
 ] as const;
 
 /** מסיר ניקוד, לצורך השוואות */
