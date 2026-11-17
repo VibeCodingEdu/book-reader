@@ -32,6 +32,43 @@ export interface ParsedBook {
   wordCount: number;
 }
 
+// ---------- ניקוי פרטי ספר: נקודה אחת לכל מסלולי הייבוא ----------
+
+/** מה שמסלול ייבוא יודע על הספר. מה שנגזר מהפרקים מחושב כאן ולא מתקבל מבחוץ. */
+export type MetaInput = Omit<BookMeta, 'chapterCount' | 'chapterTitles' | 'wordCount'> & Partial<Pick<BookMeta, 'wordCount'>>;
+
+const clip = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+const optional = (v: unknown, max: number): string | undefined => clip(v, max) || undefined;
+
+export function countChapterWords(chapters: Chapter[]): number {
+  let n = 0;
+  for (const ch of chapters) for (const p of ch.paragraphs) for (const s of p) n += countWords(s);
+  return n;
+}
+
+/**
+ * פרטי ספר נקיים מכל מקור (Gutenberg, העלאה מהדפדפן, קטלוג).
+ * האובייקט הפנימי מחויב לכלול את כל המפתחות של BookMeta: שדה חדש שלא יטופל כאן
+ * ייתן שגיאת TypeScript, ולא ייעלם בשקט.
+ */
+export function normalizeMeta(input: MetaInput, chapters: Chapter[]): BookMeta {
+  const all: { [K in keyof Required<BookMeta>]: BookMeta[K] } = {
+    id: input.id,
+    lang: clip(input.lang, 10) || 'en',
+    title: clip(input.title, 300),
+    author: clip(input.author, 300),
+    source: input.source,
+    level: optional(input.level, 10),
+    sourceUrl: optional(input.sourceUrl, 500),
+    audioUrl: optional(input.audioUrl, 500),
+    chapterCount: chapters.length,
+    wordCount: countChapterWords(chapters),
+    chapterTitles: chapters.map((c) => clip(c.title, 200)),
+  };
+  // שדות אופציונליים ריקים לא נשמרים
+  return Object.fromEntries(Object.entries(all).filter(([, v]) => v !== undefined)) as unknown as BookMeta;
+}
+
 export function sentenceId(c: number, p: number, s: number): string {
   return `c${c}.p${p}.s${s}`;
 }

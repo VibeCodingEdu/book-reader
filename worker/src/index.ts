@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
-import type { BookMeta, Chapter } from '../../shared/book';
+import { normalizeMeta, type BookMeta, type Chapter } from '../../shared/book';
 import type { TextTranslateRequest, TextTranslateResponse, WordLookupRequest, WordLookupResponse } from '../../shared/translate';
 import { validateUpload } from './upload';
 import { fetchExternal } from './external';
@@ -104,21 +104,8 @@ app.post('/api/books/upload', async (c) => {
   const body = await c.req.json<{ meta?: BookMeta; chapters?: Chapter[] }>();
   const err = validateUpload(body.meta, body.chapters);
   if (err) return c.json({ error: err }, 400);
-  const meta = body.meta!;
   const chapters = body.chapters!;
-  const clean: BookMeta = {
-    id: meta.id,
-    lang: meta.lang || 'en',
-    title: meta.title.slice(0, 300),
-    author: (meta.author ?? '').slice(0, 300),
-    source: meta.source,
-    level: meta.level?.slice(0, 10),
-    sourceUrl: meta.sourceUrl?.slice(0, 500),
-    audioUrl: meta.audioUrl,
-    chapterCount: chapters.length,
-    wordCount: Number(meta.wordCount) || 0,
-    chapterTitles: chapters.map((ch) => String(ch.title).slice(0, 200)),
-  };
+  const clean = normalizeMeta(body.meta!, chapters);
   await store.saveBook(c.env.DB, clean, chapters);
   return c.json({ book: clean });
 });

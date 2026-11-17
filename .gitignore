@@ -10,3 +10,6 @@ dist/
 
 # מחוון התקדמות של בניית קטלוג
 *.progress
+
+# מפת הקוד של graphify (נבנית מקומית)
+graphify-out/

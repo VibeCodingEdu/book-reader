@@ -1,6 +1,6 @@
 // העלאת קובץ מהמכשיר לספרייה: פענוח בדפדפן → שמירה בשרת
 
-import type { BookMeta } from '../../shared/book';
+import { normalizeMeta, type BookMeta } from '../../shared/book';
 import { uploadBook } from './api';
 import { importFile } from './importers';
 
@@ -28,19 +28,19 @@ export async function uploadFile(file: File, from?: CatalogLink, onStage?: (s: s
   const imp = await importFile(file);
   if (!imp.parsed.chapters.length) throw new Error('לא נמצא טקסט בקובץ');
   const title = from?.title || imp.title;
-  const meta: BookMeta = {
-    id: from ? `${from.source}-${slug(from.id)}` : `upload-${slug(title) || 'book'}-${Date.now().toString(36)}`,
-    lang: 'en',
-    title,
-    author: from?.author || imp.author,
-    source: from?.source ?? 'upload',
-    level: from?.level,
-    sourceUrl: from?.url,
-    audioUrl: from?.audioUrl,
-    chapterCount: imp.parsed.chapters.length,
-    wordCount: imp.parsed.wordCount,
-    chapterTitles: imp.parsed.chapters.map((c) => c.title),
-  };
+  const meta = normalizeMeta(
+    {
+      id: from ? `${from.source}-${slug(from.id)}` : `upload-${slug(title) || 'book'}-${Date.now().toString(36)}`,
+      lang: 'en',
+      title,
+      author: from?.author || imp.author,
+      source: from?.source ?? 'upload',
+      level: from?.level,
+      sourceUrl: from?.url,
+      audioUrl: from?.audioUrl,
+    },
+    imp.parsed.chapters,
+  );
   onStage?.('שומר בספרייה…');
   return uploadBook(meta, imp.parsed.chapters);
 }
