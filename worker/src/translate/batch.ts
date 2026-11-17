@@ -7,6 +7,14 @@ export interface BatchItem {
   text: string;
 }
 
+/**
+ * תרגום שנראה פגום: אותיות מכתב זר (ערבית, קירילית, יוונית, סינית...) בתוך תרגום עברי.
+ * קורה לפעמים במודלים קלים ("אוי ואבوي!"). תרגום כזה נחשב חסר ונשלח שוב.
+ */
+export function looksBroken(translation: string): boolean {
+  return /[\u0600-\u06FF\u0400-\u04FF\u0370-\u03FF\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/.test(translation);
+}
+
 export type ChunkTranslator = (items: BatchItem[]) => Promise<{ result: { i: number; translation: string }[]; usd: number }>;
 
 export function chunk<T>(items: T[], size: number): T[][] {
@@ -43,7 +51,7 @@ export async function translateAll(
   const accept = (r: { i: number; translation: string }[], asked: BatchItem[]) => {
     const allowed = new Set(asked.map((x) => x.i));
     for (const { i, translation } of r) {
-      if (allowed.has(i) && translation.trim()) map.set(i, translation.trim());
+      if (allowed.has(i) && translation.trim() && !looksBroken(translation)) map.set(i, translation.trim());
     }
   };
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chunk, translateAll, type BatchItem } from './batch';
+import { chunk, looksBroken, translateAll, type BatchItem } from './batch';
 
 const items: BatchItem[] = Array.from({ length: 95 }, (_, i) => ({ i, text: `Sentence ${i}.` }));
 
@@ -49,5 +49,24 @@ describe('translateAll', () => {
     // בסבב ההשלמה 3 נשלח בלי 2 (שתמיד נכשל), ולכן מתורגם
     expect(map.get(3)).toBe('ok');
     expect(missing.sort()).toEqual([1, 2]);
+  });
+});
+
+describe('looksBroken', () => {
+  it('מזהה אותיות מכתב זר בתוך עברית', () => {
+    expect(looksBroken('אוי ואבوي!')).toBe(true);
+    expect(looksBroken('привет')).toBe(true);
+    expect(looksBroken('אוי ואבוי!')).toBe(false);
+    expect(looksBroken('ורונה (Verona), שנת 1597 – "שלום"')).toBe(false);
+  });
+
+  it('תרגום פגום נשלח שוב', async () => {
+    let round = 0;
+    const { map } = await translateAll([{ i: 0, text: 'Oh dear!' }], async () => {
+      round++;
+      return { result: [{ i: 0, translation: round === 1 ? 'אוי ואבوي!' : 'אוי ואבוי!' }], usd: 0 };
+    });
+    expect(round).toBe(2);
+    expect(map.get(0)).toBe('אוי ואבוי!');
   });
 });

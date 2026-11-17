@@ -96,9 +96,9 @@ for (const eng of engines) {
       const { result, usd } = await engine.translateBatch(items, 'Act I');
       totalUsd += usd;
       const byI = new Map(result.map((r) => [r.i, stripNiqqud(r.translation)]));
-      rows.push(`| ${eng.id} | (משפטים) | 3 משפטים | ${[0, 1, 2].map((i) => byI.get(i) ?? '—').join(' / ')} | | ${byI.size === 3 && /פרצ/.test(byI.get(1) ?? '') ? '✅' : '❌'} | |`);
+      rows.push(`| ${eng.id} | (משפטים) | 3 משפטים | ${[0, 1, 2].map((i) => byI.get(i) ?? '—').join(' / ')} | | ${byI.size === 3 && /פר[צץ]/.test(byI.get(1) ?? '') ? '✅' : '❌'} | |`);
       expect(byI.size).toBe(3);
-      expect(byI.get(1)).toMatch(/פרצ/);
+      expect(byI.get(1)).toMatch(/פר[צץ]/); // פרץ / פרצה
     });
   });
 }
