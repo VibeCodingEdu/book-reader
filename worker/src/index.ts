@@ -291,9 +291,13 @@ app.post('/api/translate/chapter', async (c) => {
     const t = map.get(i);
     if (t) translations[s.sid] = t;
   });
-  // שומרים רק פרק שתורגם במלואו; פרק חלקי יושלם בבקשה הבאה
+  // שומרים גם פרק שחסרים בו כמה משפטים (אחרת כל פתיחה הייתה מתרגמת את כולו מחדש).
+  // משפט חסר מתורגם לבד דרך /api/translate/sentence (כפתור "נסה שוב"), עם הקשר אחר.
+  if (missing.length) console.warn(`chapter ${book.id}/${idx}: ${missing.length} sentence(s) left untranslated`);
   await Promise.all([
-    missing.length ? Promise.resolve() : store.putChapterTranslations(c.env.DB, book.id, idx, engineId, pv, translations),
+    Object.keys(translations).length
+      ? store.putChapterTranslations(c.env.DB, book.id, idx, engineId, pv, translations)
+      : Promise.resolve(),
     store.addSpend(c.env.DB, engineId, usd),
   ]);
   return c.json({ translations, engine: engineId, cached: false } satisfies ChapterTranslateResponse);

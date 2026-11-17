@@ -212,6 +212,8 @@ export function StudyView({ book, settings, ch, clearRef, onPatchSettings }: Vie
                         hidden={parallel === 'hide' && !revealed.has(sid) && !opened.has(sid)}
                         onReveal={() => reveal(sid)}
                         onHide={parallel === 'hide' && revealed.has(sid) ? () => reveal(sid) : undefined}
+                        onRetry={() => tr.translateOne(sid)}
+                        pending={parallel !== 'off' && tr.chapterState === 'idle'}
                       />
                     </div>
                   );
@@ -277,6 +279,10 @@ function TranslationLine(props: {
   hidden: boolean;
   onReveal: () => void;
   onHide?: () => void;
+  /** תרגום של המשפט הזה לבד (כשהוא חסר בתרגום הפרק, או נכשל) */
+  onRetry: () => void;
+  /** תרגום הפרק עומד להתחיל – מציגים "מתרגם…" ולא כפתור (בלי הבהוב ב-E-ink) */
+  pending: boolean;
 }) {
   const { tr, visible, hidden } = props;
   if (hidden) {
@@ -287,8 +293,15 @@ function TranslationLine(props: {
     );
   }
   if (!visible) return null;
-  if (!tr || tr.state === 'loading') return <div class="study-tr muted">מתרגם…</div>;
-  if (tr.state === 'error') return <div class="study-tr msg bad">{tr.error}</div>;
+  if (tr?.state === 'loading' || (!tr && props.pending)) return <div class="study-tr muted">מתרגם…</div>;
+  if (!tr || tr.state === 'error') {
+    // הפרק תורגם אבל המשפט הזה חסר בו, או שהתרגום נכשל
+    return (
+      <button class="study-tr-hidden retry" onClick={props.onRetry}>
+        {tr?.state === 'error' ? `${tr.error} · נסה שוב` : 'לא תורגם · נסה שוב'}
+      </button>
+    );
+  }
   return (
     <div class="study-tr" dir="rtl" lang="he" onClick={props.onHide} role={props.onHide ? 'button' : undefined}>
       {tr.text}

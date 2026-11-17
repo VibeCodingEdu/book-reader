@@ -41,7 +41,8 @@ The user gives you a passage they selected (from a few words up to a paragraph) 
 
 Return:
 - translation: a natural, accurate modern Hebrew translation of ONLY the selected passage, without niqqud. Use the context to choose the right meaning, tense and gender. If the selection is a fragment, translate it as a fragment (do not complete it into a full sentence).
-- note: a short Hebrew note (max 20 words) ONLY when useful: an idiom or phrasal verb inside the passage, a cultural reference, or wordplay. Otherwise an empty string.`;
+- note: a short Hebrew note (max 20 words) ONLY when useful: an idiom or phrasal verb inside the passage, a cultural reference, or wordplay. Otherwise an empty string.
+Write ONLY in Hebrew letters (plus digits, punctuation, and Latin letters for names). Never use Arabic, Cyrillic or any other script.`;
 
 export function textUserMessage(text: string, context: string): string {
   return `Context: ${context}\n\nSelected passage: ${text}`;
@@ -55,7 +56,8 @@ Return one translation per input sentence, with the same "i":
 - Natural, accurate modern Hebrew, without niqqud.
 - Translate each sentence on its own line: do not merge, split or skip sentences, even very short ones (e.g. "Oh dear!").
 - Use the surrounding sentences as context for meaning, tense and gender.
-- Keep names consistent across the chapter (same Hebrew transliteration every time).`;
+- Keep names consistent across the chapter (same Hebrew transliteration every time).
+- Write ONLY in Hebrew letters, plus digits, punctuation and (rarely) Latin letters for a name. Never use Arabic, Cyrillic or any other script, not even for one letter.`;
 
 export function batchUserMessage(items: { i: number; text: string }[], title: string): string {
   return `Chapter: ${title}\n\nSentences:\n${JSON.stringify(items)}`;

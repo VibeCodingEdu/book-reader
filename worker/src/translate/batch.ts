@@ -39,7 +39,8 @@ async function pool<T, R>(items: T[], limit: number, fn: (x: T) => Promise<R>): 
 
 /**
  * מתרגם את כל המשפטים. מחזיר מפה מספר → תרגום ואת העלות.
- * משפטים שחסרו בתשובה נשלחים שוב פעם אחת; אם עדיין חסרים – נשארים בלי תרגום.
+ * משפטים שחסרו בתשובה (או שתורגמו פגום) נשלחים שוב, כל אחד לבד; אם עדיין חסרים –
+ * נשארים בלי תרגום, והמשתמש יכול לנסות שוב למשפט הבודד.
  */
 export async function translateAll(
   items: BatchItem[],
@@ -55,8 +56,8 @@ export async function translateAll(
     }
   };
 
-  const runRound = async (todo: BatchItem[]) => {
-    const parts = await pool(chunk(todo, size), concurrency, async (part) => {
+  const runRound = async (todo: BatchItem[], groupSize: number) => {
+    const parts = await pool(chunk(todo, groupSize), concurrency, async (part) => {
       try {
         return { part, ...(await translateChunk(part)) };
       } catch {
@@ -69,9 +70,11 @@ export async function translateAll(
     }
   };
 
-  await runRound(items);
+  await runRound(items, size);
+  // סבב השלמה: כל משפט שחסר (או שתורגם פגום) נשלח לבד. קלט שונה נותן בדרך כלל
+  // תשובה שונה – אותה קבוצה בדיוק הייתה מחזירה כנראה אותה טעות.
   const missingFirst = items.filter((x) => !map.has(x.i));
-  if (missingFirst.length) await runRound(missingFirst);
+  if (missingFirst.length) await runRound(missingFirst, 1);
   const missing = items.filter((x) => !map.has(x.i)).map((x) => x.i);
   return { map, usd, missing };
 }

@@ -23,7 +23,7 @@ describe('translateAll', () => {
     expect(missing).toEqual([]);
   });
 
-  it('משלים משפטים שהמנוע דילג עליהם, בבקשה נוספת רק עבורם', async () => {
+  it('משלים משפטים שהמנוע דילג עליהם – כל אחד בבקשה נפרדת', async () => {
     let round = 0;
     const asked: number[][] = [];
     const { map, missing } = await translateAll(items.slice(0, 10), async (part) => {
@@ -33,7 +33,7 @@ describe('translateAll', () => {
       const result = part.filter((x) => round > 1 || (x.i !== 3 && x.i !== 7)).map((x) => ({ i: x.i, translation: `ת${x.i}` }));
       return { result, usd: 0 };
     });
-    expect(asked[1]).toEqual([3, 7]);
+    expect(asked.slice(1).sort()).toEqual([[3], [7]]);
     expect(map.size).toBe(10);
     expect(missing).toEqual([]);
   });
@@ -46,7 +46,7 @@ describe('translateAll', () => {
     expect(map.has(99)).toBe(false);
     expect(map.has(1)).toBe(false);
     expect(map.get(0)).toBe('ok');
-    // בסבב ההשלמה 3 נשלח בלי 2 (שתמיד נכשל), ולכן מתורגם
+    // בסבב ההשלמה כל משפט נשלח לבד: 3 מתורגם, 2 נכשל שוב, 1 שוב ריק
     expect(map.get(3)).toBe('ok');
     expect(missing.sort()).toEqual([1, 2]);
   });
@@ -68,5 +68,23 @@ describe('looksBroken', () => {
     });
     expect(round).toBe(2);
     expect(map.get(0)).toBe('אוי ואבוי!');
+  });
+});
+
+describe('סבב השלמה עם קלט שונה', () => {
+  it('משפט שנכשל בקבוצה מצליח כשהוא נשלח לבד', async () => {
+    // המנוע "נכשל" על Oh dear! רק כשהוא בתוך קבוצה, כמו שראינו מול Gemini
+    const { map, missing } = await translateAll(
+      [
+        { i: 0, text: 'Two families lived in Verona.' },
+        { i: 1, text: 'Oh dear!' },
+      ],
+      async (part) => ({
+        result: part.map((x) => ({ i: x.i, translation: x.i === 1 && part.length > 1 ? 'אוי ואבوي!' : `ת${x.i}` })),
+        usd: 0,
+      }),
+    );
+    expect(map.get(1)).toBe('ת1');
+    expect(missing).toEqual([]);
   });
 });
