@@ -1,6 +1,6 @@
 // העלאת קובץ מהמכשיר לספרייה: פענוח בדפדפן → שמירה בשרת
 
-import { normalizeMeta, type BookMeta } from '../../shared/book';
+import { normalizeMeta, PARSER_VERSION, type BookMeta } from '../../shared/book';
 import { uploadBook } from './api';
 import { importFile } from './importers';
 
@@ -38,6 +38,8 @@ export async function uploadFile(file: File, from?: CatalogLink, onStage?: (s: s
       level: from?.level,
       sourceUrl: from?.url,
       audioUrl: from?.audioUrl,
+      // הפענוח נעשה כאן בדפדפן – זו הגרסה שבה המזהים נוצרו
+      parserVersion: PARSER_VERSION,
     },
     imp.parsed.chapters,
   );

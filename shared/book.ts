@@ -16,6 +16,8 @@ export interface BookMeta {
   sourceUrl?: string;
   /** קובץ שמע (MP3) של הספר באתר המקור, אם יש */
   audioUrl?: string;
+  /** גרסת הפענוח שבה הספר פורק למשפטים. חסר = 1 (ספרים מלפני השדה). ראו PARSER_VERSION. */
+  parserVersion?: number;
   chapterCount: number;
   wordCount: number;
   chapterTitles: string[];
@@ -61,12 +63,26 @@ export function normalizeMeta(input: MetaInput, chapters: Chapter[]): BookMeta {
     level: optional(input.level, 10),
     sourceUrl: optional(input.sourceUrl, 500),
     audioUrl: optional(input.audioUrl, 500),
+    // מסלול שפענח בעצמו מעביר את הגרסה שלו; אחרת – הגרסה הנוכחית של הקוד שמריץ את הייבוא
+    parserVersion:
+      Number.isInteger(input.parserVersion) && input.parserVersion! > 0 ? input.parserVersion : PARSER_VERSION,
     chapterCount: chapters.length,
     wordCount: countChapterWords(chapters),
     chapterTitles: chapters.map((c) => clip(c.title, 200)),
   };
   // שדות אופציונליים ריקים לא נשמרים
   return Object.fromEntries(Object.entries(all).filter(([, v]) => v !== undefined)) as unknown as BookMeta;
+}
+
+// מעלים את המספר בכל שינוי בפירוק שמזיז מזהי משפטים
+// (splitSentences, parsePlainText, chaptersFromRaw, מפענחי EPUB/PDF).
+// מיקום קריאה, סימניות והערות מצביעים על מזהה משפט, ולכן ספר שפוענח בגרסה אחרת
+// עלול להצביע על משפטים אחרים.
+export const PARSER_VERSION = 1;
+
+/** גרסת הפענוח של ספר; ספרים ישנים בלי השדה נחשבים לגרסה 1 */
+export function parserVersionOf(meta: Pick<BookMeta, 'parserVersion'>): number {
+  return meta.parserVersion ?? 1;
 }
 
 export function sentenceId(c: number, p: number, s: number): string {

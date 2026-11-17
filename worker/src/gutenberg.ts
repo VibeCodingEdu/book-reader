@@ -1,7 +1,7 @@
 // ייבוא ספרים ברשות הציבור מ-Project Gutenberg.
 // חיפוש: Gutendex (קטלוג פתוח של Gutenberg). הורדה: הטקסט הרשמי בקידוד UTF-8.
 
-import { normalizeMeta, parsePlainText, type BookMeta, type Chapter } from '../../shared/book';
+import { normalizeMeta, PARSER_VERSION, parsePlainText, type BookMeta, type Chapter } from '../../shared/book';
 
 export interface SearchResult {
   gutenbergId: number;
@@ -119,7 +119,10 @@ export async function importGutenberg(
   const parsed = parsePlainText(raw, 'en');
   if (!parsed.chapters.length) throw new Error('לא נמצא טקסט בספר');
   return {
-    meta: normalizeMeta({ id: `gutenberg-${id}`, lang: 'en', title, author, source: 'gutenberg' }, parsed.chapters),
+    meta: normalizeMeta(
+      { id: `gutenberg-${id}`, lang: 'en', title, author, source: 'gutenberg', parserVersion: PARSER_VERSION },
+      parsed.chapters,
+    ),
     chapters: parsed.chapters,
   };
 }

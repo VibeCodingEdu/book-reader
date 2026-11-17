@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeMeta, type BookMeta, type Chapter } from './book';
+import { normalizeMeta, PARSER_VERSION, parserVersionOf, type BookMeta, type Chapter } from './book';
 
 const chapters: Chapter[] = [
   { title: 'Chapter 1', paragraphs: [['One two three.', 'Four five.']] },
@@ -16,6 +16,7 @@ const full: Required<BookMeta> = {
   level: 'A2',
   sourceUrl: 'https://english-e-reader.net/book/brown-eyes',
   audioUrl: 'https://english-e-reader.net/download?link=brown-eyes&format=mp3',
+  parserVersion: 1,
   chapterCount: 2,
   wordCount: 7,
   chapterTitles: ['Chapter 1', 'Chapter 2'],
@@ -58,5 +59,20 @@ describe('normalizeMeta', () => {
     expect('level' in out).toBe(false);
     expect('sourceUrl' in out).toBe(false);
     expect('audioUrl' in out).toBe(false);
+  });
+});
+
+describe('parserVersion', () => {
+  it('מסלול שלא העביר גרסה מקבל את הגרסה הנוכחית', () => {
+    const out = normalizeMeta({ id: 'gutenberg-1', lang: 'en', title: 'T', author: '', source: 'gutenberg' }, chapters);
+    expect(out.parserVersion).toBe(PARSER_VERSION);
+  });
+  it('גרסה לא תקינה מוחלפת בגרסה הנוכחית', () => {
+    expect(normalizeMeta({ ...full, parserVersion: -3 }, chapters).parserVersion).toBe(PARSER_VERSION);
+    expect(normalizeMeta({ ...full, parserVersion: 1.5 }, chapters).parserVersion).toBe(PARSER_VERSION);
+  });
+  it('ספר ישן בלי השדה נחשב לגרסה 1', () => {
+    expect(parserVersionOf({})).toBe(1);
+    expect(parserVersionOf({ parserVersion: 3 })).toBe(3);
   });
 });
