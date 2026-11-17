@@ -68,7 +68,13 @@ export function App() {
   return (
     <>
       {book ? (
-        <Reader book={book} settings={settings} onBack={() => setBook(null)} onOpenSettings={() => setShowSettings(true)} />
+        <Reader
+          book={book}
+          settings={settings}
+          onBack={() => setBook(null)}
+          onOpenSettings={() => setShowSettings(true)}
+          onSetViewMode={(viewMode) => updateSettings({ ...settings, viewMode })}
+        />
       ) : catalog ? (
         <Catalog
           have={catalog}

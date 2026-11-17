@@ -357,3 +357,24 @@ label.btn { margin: 0; }
 .audio-panel audio { flex: 1; min-width: 200px; height: 40px; }
 .audio-panel select { min-height: 40px; }
 :root[data-theme='eink'] .audio-panel { border-bottom: 2px solid #000; }
+
+/* ---------- מצב לימוד ---------- */
+.study-list {
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  touch-action: pan-y; overscroll-behavior: contain;
+}
+.study-list.serif { font-family: var(--font-serif); }
+.study-list.sans { font-family: var(--font-sans); }
+:root[data-theme='eink'] .study-list { scroll-behavior: auto; scrollbar-width: none; }
+:root[data-theme='eink'] .study-list::-webkit-scrollbar { display: none; }
+.study-para { padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.study-para:last-of-type { border-bottom: none; }
+:root[data-theme='eink'] .study-para { border-bottom: 2px dotted #000; }
+.study-row { display: flex; align-items: flex-start; gap: 6px; padding: 4px 0; }
+.study-text { flex: 1; min-width: 0; text-align: left; }
+.study-actions { flex: none; display: flex; gap: 2px; }
+.study-actions .icon-btn { min-width: 40px; min-height: 40px; font-size: 1rem; }
+:root[data-theme='eink'] .study-actions .icon-btn { min-width: 48px; min-height: 48px; }
+.chapter-nav { display: block; width: 100%; margin: 12px 0; }
+.study-foot { direction: rtl; }

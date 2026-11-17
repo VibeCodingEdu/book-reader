@@ -12,8 +12,12 @@ export interface DeviceSettings {
   engine: string; // מנוע התרגום
   /** לחיצה על מילה מתרגמת מיד (אחרת: רק אחרי לחיצה על "תרגם") */
   autoTranslate: boolean;
+  /** מסך הספר: קריאה (עמודים) או לימוד (משפט בשורה) */
+  viewMode: ViewMode;
   updatedAt: number;
 }
+
+export type ViewMode = 'read' | 'study';
 
 export const DEFAULT_SETTINGS: DeviceSettings = {
   theme: 'light',
@@ -23,6 +27,7 @@ export const DEFAULT_SETTINGS: DeviceSettings = {
   margin: 20,
   engine: '',
   autoTranslate: true,
+  viewMode: 'read',
   updatedAt: 0,
 };
 
@@ -43,6 +48,7 @@ export function normalizeSettings(obj: Partial<DeviceSettings> | null | undefine
     margin: num(o.margin, 4, 64, DEFAULT_SETTINGS.margin),
     engine: typeof o.engine === 'string' ? o.engine : '',
     autoTranslate: typeof o.autoTranslate === 'boolean' ? o.autoTranslate : true,
+    viewMode: o.viewMode === 'study' ? 'study' : 'read',
     updatedAt: typeof o.updatedAt === 'number' ? o.updatedAt : 0,
   };
 }
