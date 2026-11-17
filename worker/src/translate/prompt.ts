@@ -46,3 +46,17 @@ Return:
 export function textUserMessage(text: string, context: string): string {
   return `Context: ${context}\n\nSelected passage: ${text}`;
 }
+
+export const BATCH_SYSTEM_PROMPT = `You translate consecutive sentences of an English book into Hebrew, for a native Hebrew speaker who reads the English alongside.
+
+Input: a JSON list of sentences, each with a number "i", in reading order, plus the chapter title.
+
+Return one translation per input sentence, with the same "i":
+- Natural, accurate modern Hebrew, without niqqud.
+- Translate each sentence on its own line: do not merge, split or skip sentences, even very short ones (e.g. "Oh dear!").
+- Use the surrounding sentences as context for meaning, tense and gender.
+- Keep names consistent across the chapter (same Hebrew transliteration every time).`;
+
+export function batchUserMessage(items: { i: number; text: string }[], title: string): string {
+  return `Chapter: ${title}\n\nSentences:\n${JSON.stringify(items)}`;
+}

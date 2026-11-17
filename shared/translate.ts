@@ -64,3 +64,33 @@ export interface TextTranslateResponse {
   engine: string;
   cached: boolean;
 }
+
+// ---------- תרגום משפטים: משפט בודד ותרגום מקביל של פרק ----------
+
+/** תרגום מקביל של פרק: מזהה משפט → תרגום */
+export type SentenceTranslations = Record<string, string>;
+
+export interface ChapterTranslateRequest {
+  bookId: string;
+  chapterIdx: number;
+  engine?: string;
+}
+
+export interface ChapterTranslateResponse {
+  translations: SentenceTranslations;
+  engine: string;
+  cached: boolean;
+}
+
+export interface SentenceTranslateRequest {
+  bookId: string;
+  chapterIdx: number;
+  sid: string;
+  engine?: string;
+}
+
+export interface SentenceTranslateResponse {
+  translation: string;
+  engine: string;
+  cached: boolean;
+}

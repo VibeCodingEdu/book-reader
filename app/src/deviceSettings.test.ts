@@ -12,9 +12,9 @@ describe('parseSettings', () => {
 
   it('שומר ערכים תקינים', () => {
     const s = parseSettings(
-      JSON.stringify({ theme: 'eink', fontSize: 24, fontFamily: 'sans', lineHeight: 1.8, margin: 32, engine: 'gemini-flash-lite', autoTranslate: false, viewMode: 'study', updatedAt: 5 }),
+      JSON.stringify({ theme: 'eink', fontSize: 24, fontFamily: 'sans', lineHeight: 1.8, margin: 32, engine: 'gemini-flash-lite', autoTranslate: false, viewMode: 'study', parallel: 'hide', updatedAt: 5 }),
     );
-    expect(s).toEqual({ theme: 'eink', fontSize: 24, fontFamily: 'sans', lineHeight: 1.8, margin: 32, engine: 'gemini-flash-lite', autoTranslate: false, viewMode: 'study', updatedAt: 5 });
+    expect(s).toEqual({ theme: 'eink', fontSize: 24, fontFamily: 'sans', lineHeight: 1.8, margin: 32, engine: 'gemini-flash-lite', autoTranslate: false, viewMode: 'study', parallel: 'hide', updatedAt: 5 });
   });
 
   it('מחליף ערכים לא חוקיים בברירת המחדל', () => {

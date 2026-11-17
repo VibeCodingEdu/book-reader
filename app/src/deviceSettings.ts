@@ -14,10 +14,13 @@ export interface DeviceSettings {
   autoTranslate: boolean;
   /** מסך הספר: קריאה (עמודים) או לימוד (משפט בשורה) */
   viewMode: ViewMode;
+  /** תרגום מקביל במצב לימוד: כבוי / גלוי / מוסתר עד לחיצה */
+  parallel: ParallelMode;
   updatedAt: number;
 }
 
 export type ViewMode = 'read' | 'study';
+export type ParallelMode = 'off' | 'show' | 'hide';
 
 export const DEFAULT_SETTINGS: DeviceSettings = {
   theme: 'light',
@@ -28,6 +31,7 @@ export const DEFAULT_SETTINGS: DeviceSettings = {
   engine: '',
   autoTranslate: true,
   viewMode: 'read',
+  parallel: 'off',
   updatedAt: 0,
 };
 
@@ -49,6 +53,7 @@ export function normalizeSettings(obj: Partial<DeviceSettings> | null | undefine
     engine: typeof o.engine === 'string' ? o.engine : '',
     autoTranslate: typeof o.autoTranslate === 'boolean' ? o.autoTranslate : true,
     viewMode: o.viewMode === 'study' ? 'study' : 'read',
+    parallel: o.parallel === 'show' || o.parallel === 'hide' ? o.parallel : 'off',
     updatedAt: typeof o.updatedAt === 'number' ? o.updatedAt : 0,
   };
 }

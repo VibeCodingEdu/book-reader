@@ -1,8 +1,18 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
-import { normalizeMeta, type BookMeta, type Chapter } from '../../shared/book';
-import type { TextTranslateRequest, TextTranslateResponse, WordLookupRequest, WordLookupResponse } from '../../shared/translate';
+import { normalizeMeta, parseSentenceId, parserVersionOf, sentenceId, type BookMeta, type Chapter } from '../../shared/book';
+import type {
+  ChapterTranslateRequest,
+  ChapterTranslateResponse,
+  SentenceTranslateRequest,
+  SentenceTranslateResponse,
+  TextTranslateRequest,
+  TextTranslateResponse,
+  WordLookupRequest,
+  WordLookupResponse,
+} from '../../shared/translate';
+import { translateAll } from './translate/batch';
 import { validateUpload } from './upload';
 import { fetchExternal } from './external';
 import { passphraseMatches, signToken, verifyToken, type TokenPayload } from './auth';
@@ -231,6 +241,107 @@ app.post('/api/translate/text', async (c) => {
     store.addSpend(c.env.DB, engineId, usd),
   ]);
   return c.json({ result, engine: engineId, cached: false } satisfies TextTranslateResponse);
+});
+
+// ---------- תרגום משפטים ----------
+
+/** המשפטים של פרק לפי הסדר, עם המזהה של כל אחד */
+function chapterSentences(chapter: Chapter, chapterIdx: number): { sid: string; text: string }[] {
+  return chapter.paragraphs.flatMap((p, pi) => p.map((text, si) => ({ sid: sentenceId(chapterIdx, pi, si), text })));
+}
+
+/** תקרת ההוצאה החודשית – מחזיר הודעת שגיאה אם עברנו אותה */
+async function overCap(db: D1Database, env: Env): Promise<string | null> {
+  const cap = Number(env.MONTHLY_CAP_USD ?? '5');
+  const { total } = await store.monthSpend(db);
+  return total >= cap ? `הגעת לתקרת ההוצאה החודשית (${cap}$)` : null;
+}
+
+// תרגום מקביל של פרק שלם. נשמר בשרת לכל ספר, פרק, מנוע וגרסת פענוח.
+app.post('/api/translate/chapter', async (c) => {
+  const req = await c.req.json<ChapterTranslateRequest>();
+  const idx = Number(req.chapterIdx);
+  const book = typeof req.bookId === 'string' ? await store.getBook(c.env.DB, req.bookId) : null;
+  if (!book || !Number.isInteger(idx) || idx < 0) return c.json({ error: 'בקשה לא תקינה' }, 400);
+  const engineId = pickEngineId(req.engine, c.env.DEFAULT_ENGINE, c.env);
+  const pv = parserVersionOf(book);
+
+  const cached = await store.getChapterTranslations(c.env.DB, book.id, idx, engineId, pv);
+  if (cached) return c.json({ translations: cached, engine: engineId, cached: true } satisfies ChapterTranslateResponse);
+
+  const capMsg = await overCap(c.env.DB, c.env);
+  if (capMsg) return c.json({ error: capMsg }, 402);
+  let engine;
+  try {
+    engine = getEngine(engineId, c.env);
+  } catch (e) {
+    if (e instanceof EngineUnavailable) return c.json({ error: e.message }, 503);
+    throw e;
+  }
+  const chapter = await store.getChapter(c.env.DB, book.id, idx);
+  if (!chapter) return c.json({ error: 'הפרק לא נמצא' }, 404);
+
+  const sentences = chapterSentences(chapter, idx);
+  const { map, usd, missing } = await translateAll(
+    sentences.map((s, i) => ({ i, text: s.text })),
+    (part) => engine.translateBatch(part, chapter.title),
+  );
+  const translations: Record<string, string> = {};
+  sentences.forEach((s, i) => {
+    const t = map.get(i);
+    if (t) translations[s.sid] = t;
+  });
+  // שומרים רק פרק שתורגם במלואו; פרק חלקי יושלם בבקשה הבאה
+  await Promise.all([
+    missing.length ? Promise.resolve() : store.putChapterTranslations(c.env.DB, book.id, idx, engineId, pv, translations),
+    store.addSpend(c.env.DB, engineId, usd),
+  ]);
+  return c.json({ translations, engine: engineId, cached: false } satisfies ChapterTranslateResponse);
+});
+
+// תרגום משפט בודד (כפתור 🌐 / "תרגום כל המשפט"): קודם מהתרגום המקביל אם קיים,
+// אחרת המשפט נשלח עם המשפט שלפניו ושאחריו בשביל ההקשר.
+app.post('/api/translate/sentence', async (c) => {
+  const req = await c.req.json<SentenceTranslateRequest>();
+  const idx = Number(req.chapterIdx);
+  const pos = typeof req.sid === 'string' ? parseSentenceId(req.sid) : null;
+  const book = typeof req.bookId === 'string' ? await store.getBook(c.env.DB, req.bookId) : null;
+  if (!book || !pos || pos.c !== idx) return c.json({ error: 'בקשה לא תקינה' }, 400);
+  const engineId = pickEngineId(req.engine, c.env.DEFAULT_ENGINE, c.env);
+  const pv = parserVersionOf(book);
+
+  const whole = await store.getChapterTranslations(c.env.DB, book.id, idx, engineId, pv);
+  if (whole?.[req.sid]) {
+    return c.json({ translation: whole[req.sid], engine: engineId, cached: true } satisfies SentenceTranslateResponse);
+  }
+  const key = await store.cacheKey(['sentence', engineId, pv, book.id, req.sid]);
+  const one = (await store.getCachedLookup(c.env.DB, key)) as unknown as { translation: string } | null;
+  if (one) return c.json({ translation: one.translation, engine: engineId, cached: true } satisfies SentenceTranslateResponse);
+
+  const capMsg = await overCap(c.env.DB, c.env);
+  if (capMsg) return c.json({ error: capMsg }, 402);
+  let engine;
+  try {
+    engine = getEngine(engineId, c.env);
+  } catch (e) {
+    if (e instanceof EngineUnavailable) return c.json({ error: e.message }, 503);
+    throw e;
+  }
+  const chapter = await store.getChapter(c.env.DB, book.id, idx);
+  if (!chapter) return c.json({ error: 'הפרק לא נמצא' }, 404);
+  const sentences = chapterSentences(chapter, idx);
+  const k = sentences.findIndex((s) => s.sid === req.sid);
+  if (k < 0) return c.json({ error: 'המשפט לא נמצא' }, 404);
+
+  // הקשר: המשפט שלפני ושאחרי (מתורגמים גם הם, אבל רק המבוקש נשמר ומוחזר)
+  const around = sentences.slice(Math.max(0, k - 1), k + 2).map((s, j) => ({ i: j, text: s.text, sid: s.sid }));
+  const target = around.find((s) => s.sid === req.sid)!;
+  const { map, usd } = await translateAll(around.map(({ i, text }) => ({ i, text })), (part) => engine.translateBatch(part, chapter.title));
+  const translation = map.get(target.i);
+  await store.addSpend(c.env.DB, engineId, usd);
+  if (!translation) return c.json({ error: 'המנוע לא החזיר תרגום' }, 502);
+  await store.putCachedLookup(c.env.DB, key, engineId, { translation } as never);
+  return c.json({ translation, engine: engineId, cached: false } satisfies SentenceTranslateResponse);
 });
 
 export default app;

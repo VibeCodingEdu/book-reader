@@ -73,7 +73,7 @@ export function App() {
           settings={settings}
           onBack={() => setBook(null)}
           onOpenSettings={() => setShowSettings(true)}
-          onSetViewMode={(viewMode) => updateSettings({ ...settings, viewMode })}
+          onPatchSettings={(patch) => updateSettings({ ...settings, ...patch })}
         />
       ) : catalog ? (
         <Catalog

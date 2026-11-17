@@ -15,10 +15,10 @@ interface Props {
   settings: DeviceSettings;
   onBack: () => void;
   onOpenSettings: () => void;
-  onSetViewMode: (mode: ViewMode) => void;
+  onPatchSettings: (patch: Partial<DeviceSettings>) => void;
 }
 
-export function Reader({ book, settings, onBack, onOpenSettings, onSetViewMode }: Props) {
+export function Reader({ book, settings, onBack, onOpenSettings, onPatchSettings }: Props) {
   const clearRef = useRef<() => void>(() => {});
   const ch = useBookChapter(book, () => clearRef.current());
   const study = settings.viewMode === 'study';
@@ -30,12 +30,12 @@ export function Reader({ book, settings, onBack, onOpenSettings, onSetViewMode }
         book={book}
         chapterIdx={ch.chapterIdx}
         viewMode={settings.viewMode}
-        onToggleMode={() => onSetViewMode(study ? 'read' : 'study')}
+        onToggleMode={() => onPatchSettings({ viewMode: (study ? 'read' : 'study') as ViewMode })}
         onBack={onBack}
         onJumpToChapter={ch.jumpToChapter}
         onOpenSettings={onOpenSettings}
       />
-      <View book={book} settings={settings} ch={ch} clearRef={clearRef} />
+      <View book={book} settings={settings} ch={ch} clearRef={clearRef} onPatchSettings={onPatchSettings} />
     </div>
   );
 }

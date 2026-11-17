@@ -5,7 +5,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import type { TextTranslateRequest, TextTranslation, WordLookup, WordLookupRequest } from '../../../shared/translate';
-import { TEXT_SYSTEM_PROMPT, textUserMessage, WORD_SYSTEM_PROMPT, wordUserMessage } from './prompt';
+import type { BatchItem } from './batch';
+import { BATCH_SYSTEM_PROMPT, batchUserMessage, TEXT_SYSTEM_PROMPT, textUserMessage, WORD_SYSTEM_PROMPT, wordUserMessage } from './prompt';
 
 export interface EngineResult {
   result: WordLookup;
@@ -16,9 +17,12 @@ export interface Engine {
   id: string;
   lookupWord(req: WordLookupRequest): Promise<EngineResult>;
   translateText(req: TextTranslateRequest): Promise<{ result: TextTranslation; usd: number }>;
+  /** תרגום קבוצת משפטים רצופים (תרגום מקביל / משפט בודד) */
+  translateBatch(items: BatchItem[], title: string): Promise<{ result: { i: number; translation: string }[]; usd: number }>;
 }
 
 export const TextTranslationSchema = z.object({ translation: z.string(), note: z.string() });
+export const BatchSchema = z.object({ translations: z.array(z.object({ i: z.number(), translation: z.string() })) });
 
 export interface EngineKeys {
   ANTHROPIC_API_KEY?: string;
@@ -76,6 +80,19 @@ function claudeEngine(apiKey: string): Engine {
       }
       const usd = response.usage.input_tokens * HAIKU_IN + response.usage.output_tokens * HAIKU_OUT;
       return { result: response.parsed_output, usd };
+    },
+    async translateBatch(items, title) {
+      const response = await client.messages.parse({
+        model: 'claude-haiku-5-5',
+        max_tokens: 8192,
+        thinking: { type: 'disabled' },
+        system: BATCH_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: batchUserMessage(items, title) }],
+        output_config: { effort: 'low', format: zodOutputFormat(BatchSchema) },
+      });
+      if (response.stop_reason === 'refusal' || !response.parsed_output) throw new Error('המנוע לא החזיר תשובה תקינה');
+      const usd = response.usage.input_tokens * HAIKU_IN + response.usage.output_tokens * HAIKU_OUT;
+      return { result: response.parsed_output.translations, usd };
     },
   };
 }
@@ -145,6 +162,21 @@ async function geminiJson(
   return { data: JSON.parse(text), usd: (u.promptTokenCount ?? 0) * FL_IN + (u.candidatesTokenCount ?? 0) * FL_OUT };
 }
 
+const GEMINI_BATCH_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    translations: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: { i: { type: 'INTEGER' }, translation: { type: 'STRING' } },
+        required: ['i', 'translation'],
+      },
+    },
+  },
+  required: ['translations'],
+};
+
 const GEMINI_TEXT_SCHEMA = {
   type: 'OBJECT',
   properties: { translation: { type: 'STRING' }, note: { type: 'STRING' } },
@@ -165,6 +197,12 @@ function geminiEngine(apiKey: string): Engine {
       const parsed = TextTranslationSchema.safeParse(data);
       if (!parsed.success) throw new Error('המנוע לא החזיר תשובה תקינה');
       return { result: parsed.data, usd };
+    },
+    async translateBatch(items, title) {
+      const { data, usd } = await geminiJson(apiKey, BATCH_SYSTEM_PROMPT, batchUserMessage(items, title), GEMINI_BATCH_SCHEMA);
+      const parsed = BatchSchema.safeParse(data);
+      if (!parsed.success) throw new Error('המנוע לא החזיר תשובה תקינה');
+      return { result: parsed.data.translations, usd };
     },
   };
 }

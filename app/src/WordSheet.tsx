@@ -1,5 +1,6 @@
 import type { TextTranslation, UnitType, WordLookup } from '../../shared/translate';
 import { ENGINES } from '../../shared/translate';
+import type { SentenceTr } from './reader/useSentenceTranslations';
 
 type Result<T> =
   | { state: 'idle' }
@@ -43,9 +44,12 @@ interface Props {
   sel: Selection;
   onClose: () => void;
   onTranslate: () => void;
+  /** תרגום כל המשפט של המילה שנלחצה (אם יש) */
+  sentenceTr?: SentenceTr;
+  onTranslateSentence?: () => void;
 }
 
-export function WordSheet({ sel, onClose, onTranslate }: Props) {
+export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSentence }: Props) {
   const heading =
     sel.kind === 'range' ? sel.text : sel.kind === 'word' && sel.state === 'done' ? sel.result.unit : sel.word;
   const toSpeak =
@@ -90,6 +94,24 @@ export function WordSheet({ sel, onClose, onTranslate }: Props) {
             {sel.cached ? ' · מהמטמון' : ''}
           </p>
         </>
+      )}
+
+      {sel.kind === 'word' && onTranslateSentence && (
+        <div class="sheet-sentence">
+          {!sentenceTr && (
+            <button class="secondary sentence-btn" onClick={onTranslateSentence}>
+              תרגום כל המשפט
+            </button>
+          )}
+          {sentenceTr?.state === 'loading' && <p class="sheet-muted">מתרגם את המשפט…</p>}
+          {sentenceTr?.state === 'error' && <p class="msg bad">{sentenceTr.error}</p>}
+          {sentenceTr?.state === 'done' && (
+            <p class="sheet-sentence-tr" dir="rtl">
+              <span class="sheet-pos">המשפט: </span>
+              {sentenceTr.text}
+            </p>
+          )}
+        </div>
       )}
 
       {sel.kind === 'word' && <p class="sheet-hint small">לסימון כמה מילים: לחיצה ארוכה על המילה הראשונה, ואז לחיצה על האחרונה.</p>}

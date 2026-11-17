@@ -82,3 +82,23 @@ afterAll(() => {
   console.log(table);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, table + '\n');
 });
+
+// תרגום משפטים (תרגום מקביל): משפט מול משפט, בלי לדלג, עם המשמעות הנכונה בהקשר
+for (const eng of engines) {
+  describe.skipIf(!eng.has)(`תרגום משפטים – ${eng.id}`, () => {
+    it('שלושה משפטים רצופים, כל אחד בנפרד', { timeout: 60000 }, async () => {
+      const engine = getEngine(eng.id, keys);
+      const items = [
+        { i: 0, text: 'Two rich noble families lived in Verona.' },
+        { i: 1, text: 'One day a fight broke out in the street.' },
+        { i: 2, text: 'Oh dear!' },
+      ];
+      const { result, usd } = await engine.translateBatch(items, 'Act I');
+      totalUsd += usd;
+      const byI = new Map(result.map((r) => [r.i, stripNiqqud(r.translation)]));
+      rows.push(`| ${eng.id} | (משפטים) | 3 משפטים | ${[0, 1, 2].map((i) => byI.get(i) ?? '—').join(' / ')} | | ${byI.size === 3 && /פרצ/.test(byI.get(1) ?? '') ? '✅' : '❌'} | |`);
+      expect(byI.size).toBe(3);
+      expect(byI.get(1)).toMatch(/פרצ/);
+    });
+  });
+}

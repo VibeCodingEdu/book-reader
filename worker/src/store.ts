@@ -139,3 +139,36 @@ export async function addSpend(db: D1Database, engine: string, usd: number, mont
     .bind(month, engine, usd)
     .run();
 }
+
+// ---------- תרגום מקביל של פרקים ----------
+
+export async function getChapterTranslations(
+  db: D1Database,
+  bookId: string,
+  idx: number,
+  engine: string,
+  parserVersion: number,
+): Promise<Record<string, string> | null> {
+  const row = await db
+    .prepare('SELECT data FROM chapter_translations WHERE book_id = ? AND idx = ? AND engine = ? AND parser_version = ?')
+    .bind(bookId, idx, engine, parserVersion)
+    .first<{ data: string }>();
+  return row ? (JSON.parse(row.data) as Record<string, string>) : null;
+}
+
+export async function putChapterTranslations(
+  db: D1Database,
+  bookId: string,
+  idx: number,
+  engine: string,
+  parserVersion: number,
+  data: Record<string, string>,
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT OR REPLACE INTO chapter_translations (book_id, idx, engine, parser_version, data, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(bookId, idx, engine, parserVersion, JSON.stringify(data), Date.now())
+    .run();
+}

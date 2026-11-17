@@ -6,6 +6,7 @@ import { ChapterText } from './SentenceText';
 import type { ViewProps } from './viewProps';
 import { usePagination } from './usePagination';
 import { useSelection } from './useSelection';
+import { useSentenceTranslations } from './useSentenceTranslations';
 
 export function ReadingView({ book, settings, ch, clearRef }: ViewProps) {
   const pg = usePagination({
@@ -19,6 +20,7 @@ export function ReadingView({ book, settings, ch, clearRef }: ViewProps) {
   });
   const selection = useSelection({ book, chapter: ch.chapter, settings, rootRef: pg.pagesRef });
   clearRef.current = selection.clear;
+  const tr = useSentenceTranslations(book, ch.chapterIdx, settings);
 
   // ---------- דפדוף ----------
   const next = useCallback(() => {
@@ -136,7 +138,15 @@ export function ReadingView({ book, settings, ch, clearRef }: ViewProps) {
         </button>
       </footer>
 
-      {selection.sel && <WordSheet sel={selection.sel} onClose={selection.clear} onTranslate={selection.translateNow} />}
+      {selection.sel && (
+        <WordSheet
+          sel={selection.sel}
+          onClose={selection.clear}
+          onTranslate={selection.translateNow}
+          sentenceTr={selection.sel.kind === 'word' ? tr.get(selection.sel.sid) : undefined}
+          onTranslateSentence={selection.sel.kind === 'word' ? () => tr.translateOne((selection.sel as { sid: string }).sid) : undefined}
+        />
+      )}
     </>
   );
 }

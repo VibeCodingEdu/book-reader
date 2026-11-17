@@ -1,5 +1,14 @@
 import type { BookMeta, Chapter } from '../../shared/book';
-import type { TextTranslateRequest, TextTranslateResponse, WordLookupRequest, WordLookupResponse } from '../../shared/translate';
+import type {
+  ChapterTranslateRequest,
+  ChapterTranslateResponse,
+  SentenceTranslateRequest,
+  SentenceTranslateResponse,
+  TextTranslateRequest,
+  TextTranslateResponse,
+  WordLookupRequest,
+  WordLookupResponse,
+} from '../../shared/translate';
 import { WORKER_URL } from './config';
 import { idbGet, idbSet } from './idb';
 
@@ -179,6 +188,14 @@ export const lookupWord = (req: WordLookupRequest) =>
 
 export const translateText = (req: TextTranslateRequest) =>
   request<TextTranslateResponse>('/api/translate/text', { method: 'POST', body: JSON.stringify(req) });
+
+/** תרגום מקביל של פרק שלם (מזהה משפט → תרגום) */
+export const translateChapter = (req: ChapterTranslateRequest) =>
+  request<ChapterTranslateResponse>('/api/translate/chapter', { method: 'POST', body: JSON.stringify(req) });
+
+/** תרגום משפט בודד */
+export const translateSentence = (req: SentenceTranslateRequest) =>
+  request<SentenceTranslateResponse>('/api/translate/sentence', { method: 'POST', body: JSON.stringify(req) });
 
 export interface Spend {
   month: string;

@@ -10,4 +10,6 @@ export interface ViewProps {
   ch: ReturnType<typeof useBookChapter>;
   /** המסך הפעיל רושם כאן את פונקציית ניקוי הבחירה שלו (נקראת בטעינת פרק) */
   clearRef: { current: () => void };
+  /** שינוי הגדרות המכשיר מתוך המסך (למשל מצב התרגום המקביל) */
+  onPatchSettings: (patch: Partial<DeviceSettings>) => void;
 }
