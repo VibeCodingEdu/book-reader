@@ -5,7 +5,8 @@
 import { appendFileSync } from 'node:fs';
 import { afterAll, describe, expect, it } from 'vitest';
 import { stripNiqqud, type WordLookup } from '../../shared/translate';
-import { getEngine, type EngineKeys } from '../src/translate/engines';
+import { getEngine, getSentenceEngine, type EngineKeys } from '../src/translate/engines';
+import { looksBroken } from '../src/translate/batch';
 
 interface Case {
   sentence: string;
@@ -24,7 +25,11 @@ const CASES: Case[] = [
   { sentence: 'In Verona, two rich noble families lived side by side.', word: 'lived', expect: ['גרו', 'חיו', 'התגוררו', 'ישבו'] },
 ];
 
-const keys: EngineKeys = { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY, GEMINI_API_KEY: process.env.GEMINI_API_KEY };
+const keys: EngineKeys = {
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  GOOGLE_TRANSLATE_API_KEY: process.env.GOOGLE_TRANSLATE_API_KEY,
+};
 const engines = [
   { id: 'claude-haiku', has: !!keys.ANTHROPIC_API_KEY },
   { id: 'gemini-flash-lite', has: !!keys.GEMINI_API_KEY },
@@ -102,3 +107,29 @@ for (const eng of engines) {
     });
   });
 }
+
+// Google Translate למשפטים – כולל שני המשפטים שבהם Gemini טעה ("הטספית", "משבועים")
+describe.skipIf(!keys.GOOGLE_TRANSLATE_API_KEY)('תרגום משפטים – google-nmt', () => {
+  it('משפטים רצופים, עברית תקינה, ובלי הטעויות של Gemini', { timeout: 60000 }, async () => {
+    const engine = getSentenceEngine('google-nmt', keys);
+    const items = [
+      { i: 0, text: 'Two rich noble families lived in Verona.' },
+      { i: 1, text: 'One day a fight broke out in the street.' },
+      { i: 2, text: 'Oh dear!' },
+      { i: 3, text: "Every day I must do this ceremony, or that ceremony, I must stand here, or there, bow to this person, or that person." },
+      { i: 4, text: 'And I must do six months of this!' },
+    ];
+    const { result, chars } = await engine.translateBatch(items, '');
+    const byI = new Map(result.map((r) => [r.i, stripNiqqud(r.translation)]));
+    const ok =
+      byI.size === 5 &&
+      [...byI.values()].every((t) => !looksBroken(t)) &&
+      /טקס/.test(byI.get(3) ?? '') &&
+      /(שישה חודשים|חצי שנה)/.test(byI.get(4) ?? '');
+    rows.push(`| google-nmt | (משפטים) | 5 משפטים, ${chars} תווים | ${[0, 1, 2, 3, 4].map((i) => byI.get(i) ?? '—').join(' / ')} | | ${ok ? '✅' : '❌'} | |`);
+    expect(byI.size).toBe(5);
+    for (const t of byI.values()) expect(looksBroken(t), t).toBe(false);
+    expect(byI.get(3)).toMatch(/טקס/);
+    expect(byI.get(4)).toMatch(/(שישה חודשים|חצי שנה)/);
+  });
+});

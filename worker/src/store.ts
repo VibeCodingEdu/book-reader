@@ -116,27 +116,30 @@ export function currentMonth(d = new Date()): string {
   return d.toISOString().slice(0, 7);
 }
 
-export async function monthSpend(db: D1Database, month = currentMonth()): Promise<{ total: number; byEngine: Record<string, { usd: number; calls: number }> }> {
+export async function monthSpend(
+  db: D1Database,
+  month = currentMonth(),
+): Promise<{ total: number; byEngine: Record<string, { usd: number; calls: number; chars: number }> }> {
   const { results } = await db
-    .prepare('SELECT engine, usd, calls FROM spend WHERE month = ?')
+    .prepare('SELECT engine, usd, calls, chars FROM spend WHERE month = ?')
     .bind(month)
-    .all<{ engine: string; usd: number; calls: number }>();
-  const byEngine: Record<string, { usd: number; calls: number }> = {};
+    .all<{ engine: string; usd: number; calls: number; chars: number }>();
+  const byEngine: Record<string, { usd: number; calls: number; chars: number }> = {};
   let total = 0;
   for (const r of results) {
-    byEngine[r.engine] = { usd: r.usd, calls: r.calls };
+    byEngine[r.engine] = { usd: r.usd, calls: r.calls, chars: r.chars ?? 0 };
     total += r.usd;
   }
   return { total, byEngine };
 }
 
-export async function addSpend(db: D1Database, engine: string, usd: number, month = currentMonth()): Promise<void> {
+export async function addSpend(db: D1Database, engine: string, usd: number, chars = 0, month = currentMonth()): Promise<void> {
   await db
     .prepare(
-      `INSERT INTO spend (month, engine, usd, calls) VALUES (?, ?, ?, 1)
-       ON CONFLICT(month, engine) DO UPDATE SET usd = usd + excluded.usd, calls = calls + 1`,
+      `INSERT INTO spend (month, engine, usd, calls, chars) VALUES (?, ?, ?, 1, ?)
+       ON CONFLICT(month, engine) DO UPDATE SET usd = usd + excluded.usd, calls = calls + 1, chars = chars + excluded.chars`,
     )
-    .bind(month, engine, usd)
+    .bind(month, engine, usd, chars)
     .run();
 }
 

@@ -37,3 +37,12 @@ describe('pickEngineId', () => {
   it('ברירת מחדל עם מפתח נשארת', () =>
     expect(pickEngineId(undefined, 'claude-haiku', { GEMINI_API_KEY: 'k', ANTHROPIC_API_KEY: 'a' })).toBe('claude-haiku'));
 });
+
+import { pickSentenceEngineId } from './engines';
+describe('pickSentenceEngineId', () => {
+  it('Google Translate למשפטים כשיש לו מפתח', () =>
+    expect(pickSentenceEngineId('claude-haiku', { GEMINI_API_KEY: 'g', GOOGLE_TRANSLATE_API_KEY: 't' })).toBe('google-nmt'));
+  it('בלי מפתח Google – מנוע המילים', () => expect(pickSentenceEngineId('claude-haiku', { GEMINI_API_KEY: 'g' })).toBe('gemini-flash-lite'));
+  it('מנוע המילים אף פעם לא Google', () =>
+    expect(pickEngineId(undefined, 'claude-haiku', { GOOGLE_TRANSLATE_API_KEY: 't', GEMINI_API_KEY: 'g' })).toBe('gemini-flash-lite'));
+});

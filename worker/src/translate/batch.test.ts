@@ -41,21 +41,24 @@ describe('translateAll', () => {
   it('מתעלם ממספרים שלא נשאלו ומתרגומים ריקים; קבוצה שנכשלה פעמיים נשארת חסרה', async () => {
     const { map, missing } = await translateAll(items.slice(0, 4), async (part) => {
       if (part.some((x) => x.i === 2)) throw new Error('boom');
-      return { result: [...part.map((x) => ({ i: x.i, translation: x.i === 1 ? '  ' : 'ok' })), { i: 99, translation: 'זר' }], usd: 0 };
+      return { result: [...part.map((x) => ({ i: x.i, translation: x.i === 1 ? '  ' : 'תקין' })), { i: 99, translation: 'זר' }], usd: 0 };
     }, { size: 2 });
     expect(map.has(99)).toBe(false);
     expect(map.has(1)).toBe(false);
-    expect(map.get(0)).toBe('ok');
+    expect(map.get(0)).toBe('תקין');
     // בסבב ההשלמה כל משפט נשלח לבד: 3 מתורגם, 2 נכשל שוב, 1 שוב ריק
-    expect(map.get(3)).toBe('ok');
+    expect(map.get(3)).toBe('תקין');
     expect(missing.sort()).toEqual([1, 2]);
   });
 });
 
 describe('looksBroken', () => {
   it('מזהה אותיות מכתב זר בתוך עברית', () => {
-    expect(looksBroken('אוי ואבوي!')).toBe(true);
-    expect(looksBroken('привет')).toBe(true);
+    expect(looksBroken('אוי ואבوي!')).toBe(true); // ערבית
+    expect(looksBroken('Օփ, աստված ադի!')).toBe(true); // ארמנית
+    expect(looksBroken('привет')).toBe(true); // קירילית
+    expect(looksBroken('გამარჯობა')).toBe(true); // גאורגית
+    expect(looksBroken('Hello there')).toBe(true); // בכלל לא תורגם
     expect(looksBroken('אוי ואבוי!')).toBe(false);
     expect(looksBroken('ורונה (Verona), שנת 1597 – "שלום"')).toBe(false);
   });

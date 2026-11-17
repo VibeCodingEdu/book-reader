@@ -1,5 +1,6 @@
 import type { TextTranslation, UnitType, WordLookup } from '../../shared/translate';
-import { ENGINES } from '../../shared/translate';
+import { ENGINE_LABELS } from '../../shared/translate';
+import { toggleSpeak, useSpeakingKey } from './speech';
 import type { SentenceTr } from './reader/useSentenceTranslations';
 
 type Result<T> =
@@ -29,16 +30,7 @@ const TYPE_LABEL: Record<UnitType, string | null> = {
   proper_noun: 'שם פרטי',
 };
 
-export function speak(text: string, rate = 0.9) {
-  if (!('speechSynthesis' in window)) return;
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'en-US';
-  u.rate = rate;
-  speechSynthesis.speak(u);
-}
-
-const engineLabel = (id: string) => ENGINES.find((e) => e.id === id)?.label ?? id;
+const engineLabel = (id: string) => ENGINE_LABELS[id] ?? id;
 
 interface Props {
   sel: Selection;
@@ -50,6 +42,7 @@ interface Props {
 }
 
 export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSentence }: Props) {
+  const speaking = useSpeakingKey();
   const heading =
     sel.kind === 'range' ? sel.text : sel.kind === 'word' && sel.state === 'done' ? sel.result.unit : sel.word;
   const toSpeak =
@@ -66,8 +59,12 @@ export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSe
           <span class="badge">{TYPE_LABEL[sel.result.unitType]}</span>
         )}
         <span class="spacer" />
-        <button class="icon-btn" aria-label="השמעה באנגלית" onClick={() => speak(toSpeak)}>
-          🔊
+        <button
+          class="icon-btn"
+          aria-label={speaking === `sheet:${toSpeak}` ? 'עצירת ההשמעה' : 'השמעה באנגלית'}
+          onClick={() => toggleSpeak(toSpeak, `sheet:${toSpeak}`)}
+        >
+          {speaking === `sheet:${toSpeak}` ? '⏹' : '🔊'}
         </button>
         <button class="icon-btn" aria-label="סגירה" onClick={onClose}>
           ✕

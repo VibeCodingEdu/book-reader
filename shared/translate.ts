@@ -36,6 +36,12 @@ export const ENGINES = [
   { id: 'gemini-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
 ] as const;
 
+/** שמות לתצוגה של כל המנועים, כולל מנוע המשפטים (Google Translate, שלא נבחר בהגדרות) */
+export const ENGINE_LABELS: Record<string, string> = {
+  ...Object.fromEntries(ENGINES.map((e) => [e.id, e.label])),
+  'google-nmt': 'Google Translate',
+};
+
 /** מסיר ניקוד, לצורך השוואות */
 export function stripNiqqud(s: string): string {
   return s.replace(/[֑-ׇ]/g, '');

@@ -9,16 +9,18 @@ import type {
   SentenceTranslateResponse,
   TextTranslateRequest,
   TextTranslateResponse,
+  TextTranslation,
   WordLookupRequest,
   WordLookupResponse,
 } from '../../shared/translate';
-import { translateAll } from './translate/batch';
+import { looksBroken, translateAll } from './translate/batch';
+import { countChars, GOOGLE_FREE_CHARS, GOOGLE_NMT } from './translate/google';
 import { validateUpload } from './upload';
 import { fetchExternal } from './external';
 import { passphraseMatches, signToken, verifyToken, type TokenPayload } from './auth';
 import { importGutenberg, searchGutenberg } from './gutenberg';
 import * as store from './store';
-import { EngineUnavailable, getEngine, pickEngineId } from './translate/engines';
+import { EngineUnavailable, getEngine, getSentenceEngine, pickEngineId, pickSentenceEngineId } from './translate/engines';
 
 export interface Env {
   ALLOWED_ORIGINS: string;
@@ -27,6 +29,7 @@ export interface Env {
   DB: D1Database;
   ANTHROPIC_API_KEY?: string;
   GEMINI_API_KEY?: string;
+  GOOGLE_TRANSLATE_API_KEY?: string;
   DEFAULT_ENGINE?: string;
   MONTHLY_CAP_USD?: string;
 }
@@ -213,49 +216,76 @@ app.post('/api/translate/word', async (c) => {
   return c.json({ result, engine: engineId, cached: false } satisfies WordLookupResponse);
 });
 
-app.post('/api/translate/text', async (c) => {
-  const req = await c.req.json<TextTranslateRequest>();
-  if (!req.text?.trim() || req.text.length > 3000 || (req.context ?? '').length > 6000) {
-    return c.json({ error: 'בקשה לא תקינה' }, 400);
-  }
-  const engineId = pickEngineId(req.engine, c.env.DEFAULT_ENGINE, c.env);
-  const lang = req.lang || 'en';
-  const key = await store.cacheKey(['text', engineId, lang, req.text.trim(), req.context ?? '']);
-  const cached = await store.getCachedLookup(c.env.DB, key);
-  if (cached) return c.json({ result: cached, engine: engineId, cached: true } as unknown as TextTranslateResponse);
-
-  const cap = Number(c.env.MONTHLY_CAP_USD ?? '5');
-  const { total } = await store.monthSpend(c.env.DB);
-  if (total >= cap) return c.json({ error: `הגעת לתקרת ההוצאה החודשית (${cap}$)` }, 402);
-
-  let engine;
-  try {
-    engine = getEngine(engineId, c.env);
-  } catch (e) {
-    if (e instanceof EngineUnavailable) return c.json({ error: e.message }, 503);
-    throw e;
-  }
-  const { result, usd } = await engine.translateText({ ...req, lang });
-  await Promise.all([
-    store.putCachedLookup(c.env.DB, key, engineId, result as never),
-    store.addSpend(c.env.DB, engineId, usd),
-  ]);
-  return c.json({ result, engine: engineId, cached: false } satisfies TextTranslateResponse);
-});
-
-// ---------- תרגום משפטים ----------
+// ---------- תרגום קטעים ומשפטים ----------
+// מנוע המשפטים: Google Translate כשיש לו מפתח, אחרת מודל השפה (ראו pickSentenceEngineId).
 
 /** המשפטים של פרק לפי הסדר, עם המזהה של כל אחד */
 function chapterSentences(chapter: Chapter, chapterIdx: number): { sid: string; text: string }[] {
   return chapter.paragraphs.flatMap((p, pi) => p.map((text, si) => ({ sid: sentenceId(chapterIdx, pi, si), text })));
 }
 
-/** תקרת ההוצאה החודשית – מחזיר הודעת שגיאה אם עברנו אותה */
-async function overCap(db: D1Database, env: Env): Promise<string | null> {
+/**
+ * לפני קריאה למנוע: תקרת ההוצאה החודשית בדולרים, ובנוסף – ב-Google Translate – תקרת התווים
+ * החינמית לחודש. מחזיר הודעת שגיאה, או null אם אפשר להמשיך.
+ */
+async function quotaError(db: D1Database, env: Env, engineId: string, chars: number): Promise<string | null> {
   const cap = Number(env.MONTHLY_CAP_USD ?? '5');
-  const { total } = await store.monthSpend(db);
-  return total >= cap ? `הגעת לתקרת ההוצאה החודשית (${cap}$)` : null;
+  const { total, byEngine } = await store.monthSpend(db);
+  if (total >= cap) return `הגעת לתקרת ההוצאה החודשית (${cap}$)`;
+  if (engineId === GOOGLE_NMT && (byEngine[GOOGLE_NMT]?.chars ?? 0) + chars > GOOGLE_FREE_CHARS) {
+    return 'הגעת למכסה החינמית של Google Translate לחודש הזה (500 אלף תווים). התרגום יחזור בתחילת החודש הבא.';
+  }
+  return null;
 }
+
+function sentenceEngineOr503(c: { env: Env }, engineId: string) {
+  try {
+    return getSentenceEngine(engineId, c.env);
+  } catch (e) {
+    if (e instanceof EngineUnavailable) return e;
+    throw e;
+  }
+}
+
+// קטע שסומן (לחיצה ארוכה ואז נגיעה)
+app.post('/api/translate/text', async (c) => {
+  const req = await c.req.json<TextTranslateRequest>();
+  if (!req.text?.trim() || req.text.length > 3000 || (req.context ?? '').length > 6000) {
+    return c.json({ error: 'בקשה לא תקינה' }, 400);
+  }
+  const engineId = pickSentenceEngineId(c.env.DEFAULT_ENGINE, c.env);
+  const lang = req.lang || 'en';
+  const key = await store.cacheKey(['text', engineId, lang, req.text.trim(), req.context ?? '']);
+  const cached = await store.getCachedLookup(c.env.DB, key);
+  if (cached) return c.json({ result: cached, engine: engineId, cached: true } as unknown as TextTranslateResponse);
+
+  const text = req.text.trim();
+  const qErr = await quotaError(c.env.DB, c.env, engineId, text.length);
+  if (qErr) return c.json({ error: qErr }, 402);
+
+  let result: TextTranslation;
+  let usd = 0;
+  let chars = 0;
+  if (engineId === GOOGLE_NMT) {
+    const engine = sentenceEngineOr503(c, engineId);
+    if (engine instanceof Error) return c.json({ error: engine.message }, 503);
+    const out = await engine.translateBatch([{ i: 0, text }], '');
+    result = { translation: out.result[0]?.translation ?? '', note: '' };
+    chars = out.chars;
+  } else {
+    let engine;
+    try {
+      engine = getEngine(engineId, c.env);
+    } catch (e) {
+      if (e instanceof EngineUnavailable) return c.json({ error: e.message }, 503);
+      throw e;
+    }
+    ({ result, usd } = await engine.translateText({ ...req, lang }));
+  }
+  if (!result.translation || looksBroken(result.translation)) return c.json({ error: 'המנוע לא החזיר תרגום תקין' }, 502);
+  await Promise.all([store.putCachedLookup(c.env.DB, key, engineId, result as never), store.addSpend(c.env.DB, engineId, usd, chars)]);
+  return c.json({ result, engine: engineId, cached: false } satisfies TextTranslateResponse);
+});
 
 // תרגום מקביל של פרק שלם. נשמר בשרת לכל ספר, פרק, מנוע וגרסת פענוח.
 app.post('/api/translate/chapter', async (c) => {
@@ -263,28 +293,28 @@ app.post('/api/translate/chapter', async (c) => {
   const idx = Number(req.chapterIdx);
   const book = typeof req.bookId === 'string' ? await store.getBook(c.env.DB, req.bookId) : null;
   if (!book || !Number.isInteger(idx) || idx < 0) return c.json({ error: 'בקשה לא תקינה' }, 400);
-  const engineId = pickEngineId(req.engine, c.env.DEFAULT_ENGINE, c.env);
+  const engineId = pickSentenceEngineId(c.env.DEFAULT_ENGINE, c.env);
   const pv = parserVersionOf(book);
 
   const cached = await store.getChapterTranslations(c.env.DB, book.id, idx, engineId, pv);
   if (cached) return c.json({ translations: cached, engine: engineId, cached: true } satisfies ChapterTranslateResponse);
 
-  const capMsg = await overCap(c.env.DB, c.env);
-  if (capMsg) return c.json({ error: capMsg }, 402);
-  let engine;
-  try {
-    engine = getEngine(engineId, c.env);
-  } catch (e) {
-    if (e instanceof EngineUnavailable) return c.json({ error: e.message }, 503);
-    throw e;
-  }
   const chapter = await store.getChapter(c.env.DB, book.id, idx);
   if (!chapter) return c.json({ error: 'הפרק לא נמצא' }, 404);
-
   const sentences = chapterSentences(chapter, idx);
+  const qErr = await quotaError(c.env.DB, c.env, engineId, countChars(sentences.map((s) => s.text)));
+  if (qErr) return c.json({ error: qErr }, 402);
+  const engine = sentenceEngineOr503(c, engineId);
+  if (engine instanceof Error) return c.json({ error: engine.message }, 503);
+
+  let chars = 0;
   const { map, usd, missing } = await translateAll(
     sentences.map((s, i) => ({ i, text: s.text })),
-    (part) => engine.translateBatch(part, chapter.title),
+    async (part) => {
+      const out = await engine.translateBatch(part, chapter.title);
+      chars += out.chars;
+      return out;
+    },
   );
   const translations: Record<string, string> = {};
   sentences.forEach((s, i) => {
@@ -292,26 +322,26 @@ app.post('/api/translate/chapter', async (c) => {
     if (t) translations[s.sid] = t;
   });
   // שומרים גם פרק שחסרים בו כמה משפטים (אחרת כל פתיחה הייתה מתרגמת את כולו מחדש).
-  // משפט חסר מתורגם לבד דרך /api/translate/sentence (כפתור "נסה שוב"), עם הקשר אחר.
+  // משפט חסר מתורגם לבד דרך /api/translate/sentence (כפתור "נסה שוב").
   if (missing.length) console.warn(`chapter ${book.id}/${idx}: ${missing.length} sentence(s) left untranslated`);
   await Promise.all([
     Object.keys(translations).length
       ? store.putChapterTranslations(c.env.DB, book.id, idx, engineId, pv, translations)
       : Promise.resolve(),
-    store.addSpend(c.env.DB, engineId, usd),
+    store.addSpend(c.env.DB, engineId, usd, chars),
   ]);
   return c.json({ translations, engine: engineId, cached: false } satisfies ChapterTranslateResponse);
 });
 
-// תרגום משפט בודד (כפתור 🌐 / "תרגום כל המשפט"): קודם מהתרגום המקביל אם קיים,
-// אחרת המשפט נשלח עם המשפט שלפניו ושאחריו בשביל ההקשר.
+// תרגום משפט בודד (כפתור 🌐 / "תרגום כל המשפט" / "נסה שוב"): קודם מהתרגום המקביל אם קיים.
+// ב-Google נשלח רק המשפט; במודל שפה – עם המשפט שלפניו ושאחריו בשביל ההקשר.
 app.post('/api/translate/sentence', async (c) => {
   const req = await c.req.json<SentenceTranslateRequest>();
   const idx = Number(req.chapterIdx);
   const pos = typeof req.sid === 'string' ? parseSentenceId(req.sid) : null;
   const book = typeof req.bookId === 'string' ? await store.getBook(c.env.DB, req.bookId) : null;
   if (!book || !pos || pos.c !== idx) return c.json({ error: 'בקשה לא תקינה' }, 400);
-  const engineId = pickEngineId(req.engine, c.env.DEFAULT_ENGINE, c.env);
+  const engineId = pickSentenceEngineId(c.env.DEFAULT_ENGINE, c.env);
   const pv = parserVersionOf(book);
 
   const whole = await store.getChapterTranslations(c.env.DB, book.id, idx, engineId, pv);
@@ -322,27 +352,29 @@ app.post('/api/translate/sentence', async (c) => {
   const one = (await store.getCachedLookup(c.env.DB, key)) as unknown as { translation: string } | null;
   if (one) return c.json({ translation: one.translation, engine: engineId, cached: true } satisfies SentenceTranslateResponse);
 
-  const capMsg = await overCap(c.env.DB, c.env);
-  if (capMsg) return c.json({ error: capMsg }, 402);
-  let engine;
-  try {
-    engine = getEngine(engineId, c.env);
-  } catch (e) {
-    if (e instanceof EngineUnavailable) return c.json({ error: e.message }, 503);
-    throw e;
-  }
   const chapter = await store.getChapter(c.env.DB, book.id, idx);
   if (!chapter) return c.json({ error: 'הפרק לא נמצא' }, 404);
   const sentences = chapterSentences(chapter, idx);
   const k = sentences.findIndex((s) => s.sid === req.sid);
   if (k < 0) return c.json({ error: 'המשפט לא נמצא' }, 404);
 
-  // הקשר: המשפט שלפני ושאחרי (מתורגמים גם הם, אבל רק המבוקש נשמר ומוחזר)
-  const around = sentences.slice(Math.max(0, k - 1), k + 2).map((s, j) => ({ i: j, text: s.text, sid: s.sid }));
+  const around =
+    engineId === GOOGLE_NMT ? [{ i: 0, text: sentences[k].text, sid: req.sid }]
+    : sentences.slice(Math.max(0, k - 1), k + 2).map((s, j) => ({ i: j, text: s.text, sid: s.sid }));
   const target = around.find((s) => s.sid === req.sid)!;
-  const { map, usd } = await translateAll(around.map(({ i, text }) => ({ i, text })), (part) => engine.translateBatch(part, chapter.title));
+  const qErr = await quotaError(c.env.DB, c.env, engineId, countChars(around.map((s) => s.text)));
+  if (qErr) return c.json({ error: qErr }, 402);
+  const engine = sentenceEngineOr503(c, engineId);
+  if (engine instanceof Error) return c.json({ error: engine.message }, 503);
+
+  let chars = 0;
+  const { map, usd } = await translateAll(around.map(({ i, text }) => ({ i, text })), async (part) => {
+    const out = await engine.translateBatch(part, chapter.title);
+    chars += out.chars;
+    return out;
+  });
   const translation = map.get(target.i);
-  await store.addSpend(c.env.DB, engineId, usd);
+  await store.addSpend(c.env.DB, engineId, usd, chars);
   if (!translation) return c.json({ error: 'המנוע לא החזיר תרגום' }, 502);
   await store.putCachedLookup(c.env.DB, key, engineId, { translation } as never);
   return c.json({ translation, engine: engineId, cached: false } satisfies SentenceTranslateResponse);

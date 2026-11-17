@@ -118,9 +118,10 @@ jobs:
           TOKEN_SECRET: ${{ secrets.TOKEN_SECRET }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_TRANSLATE_API_KEY: ${{ secrets.GOOGLE_TRANSLATE_API_KEY }}
         run: |
           node -e '
-            const keys = ["PASSPHRASE","TOKEN_SECRET","ANTHROPIC_API_KEY","GEMINI_API_KEY"];
+            const keys = ["PASSPHRASE","TOKEN_SECRET","ANTHROPIC_API_KEY","GEMINI_API_KEY","GOOGLE_TRANSLATE_API_KEY"];
             const out = {};
             for (const k of keys) if (process.env[k]) out[k] = process.env[k];
             console.error("Syncing: " + Object.keys(out).join(", "));

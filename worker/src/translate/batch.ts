@@ -8,11 +8,13 @@ export interface BatchItem {
 }
 
 /**
- * תרגום שנראה פגום: אותיות מכתב זר (ערבית, קירילית, יוונית, סינית...) בתוך תרגום עברי.
- * קורה לפעמים במודלים קלים ("אוי ואבوي!"). תרגום כזה נחשב חסר ונשלח שוב.
+ * תרגום שנראה פגום. במקום רשימה של כתבים אסורים (שתמיד תהיה חסרה – ראינו גם ערבית וגם
+ * ארמנית), בודקים מה מותר: חייבת להיות לפחות אות עברית אחת, וכל אות אחרת היא עברית
+ * או לטינית (לשמות כמו Verona). ספרות, פיסוק ורווחים לא נבדקים.
  */
 export function looksBroken(translation: string): boolean {
-  return /[\u0600-\u06FF\u0400-\u04FF\u0370-\u03FF\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/.test(translation);
+  if (!/\p{Script=Hebrew}/u.test(translation)) return true;
+  return /(?![\p{Script=Hebrew}\p{Script=Latin}])\p{L}/u.test(translation);
 }
 
 export type ChunkTranslator = (items: BatchItem[]) => Promise<{ result: { i: number; translation: string }[]; usd: number }>;

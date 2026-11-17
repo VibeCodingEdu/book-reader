@@ -122,6 +122,13 @@ export function SettingsSheet({ settings: s, session, onChange, onClose, onLogou
           <p class="muted small">
             הוצאה החודש: {spend.total.toFixed(3)}$ מתוך {spend.cap}$ ·{' '}
             {Object.values(spend.byEngine).reduce((n, e) => n + e.calls, 0)} תרגומים
+            {spend.byEngine['google-nmt'] && (
+              <>
+                <br />
+                Google Translate: {(spend.byEngine['google-nmt'].chars ?? 0).toLocaleString('he-IL')} מתוך 500,000 תווים חינם
+                החודש
+              </>
+            )}
           </p>
         )}
 

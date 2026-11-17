@@ -4,7 +4,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { sentenceId } from '../../../shared/book';
-import { speak, WordSheet } from '../WordSheet';
+import { stopSpeaking, toggleSpeak, useSpeakingKey } from '../speech';
+import { WordSheet } from '../WordSheet';
 import { SentenceSpan } from './SentenceText';
 import { screenStep, topVisibleId, type RowBox } from './studyAnchor';
 import type { ParallelMode } from '../deviceSettings';
@@ -20,6 +21,9 @@ export function StudyView({ book, settings, ch, clearRef, onPatchSettings }: Vie
   const selection = useSelection({ book, chapter: ch.chapter, settings, rootRef: listRef });
   clearRef.current = selection.clear;
   const { chapter, chapterIdx, error } = ch;
+  const speaking = useSpeakingKey();
+  // יציאה ממצב לימוד או מעבר פרק – עוצרים השמעה של משפט
+  useEffect(() => () => stopSpeaking(), [chapterIdx]);
 
   // ---------- תרגום משפטים ----------
   const tr = useSentenceTranslations(book, chapterIdx, settings);
@@ -201,8 +205,13 @@ export function StudyView({ book, settings, ch, clearRef, onPatchSettings }: Vie
                           >
                             🌐
                           </button>
-                          <button class="icon-btn" aria-label="השמעת המשפט" onClick={() => speak(text)}>
-                            🔊
+                          <button
+                            class="icon-btn"
+                            aria-label={speaking === sid ? 'עצירת ההשמעה' : 'השמעת המשפט'}
+                            aria-pressed={speaking === sid}
+                            onClick={() => toggleSpeak(text, sid)}
+                          >
+                            {speaking === sid ? '⏹' : '🔊'}
                           </button>
                         </div>
                       </div>

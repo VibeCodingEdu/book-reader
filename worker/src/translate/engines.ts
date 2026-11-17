@@ -6,6 +6,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import type { TextTranslateRequest, TextTranslation, WordLookup, WordLookupRequest } from '../../../shared/translate';
 import type { BatchItem } from './batch';
+import { countChars, GOOGLE_NMT, googleTranslate } from './google';
 import { BATCH_SYSTEM_PROMPT, batchUserMessage, TEXT_SYSTEM_PROMPT, textUserMessage, WORD_SYSTEM_PROMPT, wordUserMessage } from './prompt';
 
 export interface EngineResult {
@@ -27,6 +28,7 @@ export const BatchSchema = z.object({ translations: z.array(z.object({ i: z.numb
 export interface EngineKeys {
   ANTHROPIC_API_KEY?: string;
   GEMINI_API_KEY?: string;
+  GOOGLE_TRANSLATE_API_KEY?: string;
 }
 
 const UNIT_TYPES = ['word', 'phrasal_verb', 'idiom', 'proper_noun'] as const;
@@ -233,4 +235,39 @@ export function pickEngineId(requested: string | undefined, def: string | undefi
   ].filter(Boolean) as string[];
   if (def && available.includes(def)) return def;
   return available[0] ?? def ?? 'claude-haiku';
+}
+
+
+// ---------- מנוע לתרגום משפטים וקטעים ----------
+// Google Translate כשיש לו מפתח (מדויק ויציב יותר במשפטים); אחרת מודל השפה של המילים.
+
+export interface SentenceEngine {
+  id: string;
+  translateBatch(items: BatchItem[], title: string): Promise<{ result: { i: number; translation: string }[]; usd: number; chars: number }>;
+}
+
+export function pickSentenceEngineId(def: string | undefined, keys: EngineKeys): string {
+  return keys.GOOGLE_TRANSLATE_API_KEY ? GOOGLE_NMT : pickEngineId(undefined, def, keys);
+}
+
+export function getSentenceEngine(id: string, keys: EngineKeys): SentenceEngine {
+  if (id === GOOGLE_NMT) {
+    if (!keys.GOOGLE_TRANSLATE_API_KEY) throw new EngineUnavailable('חסר מפתח Google Translate בשרת');
+    const key = keys.GOOGLE_TRANSLATE_API_KEY;
+    return {
+      id,
+      async translateBatch(items) {
+        const texts = items.map((x) => x.text);
+        const out = await googleTranslate(key, texts);
+        return { result: items.map((x, k) => ({ i: x.i, translation: out[k] })), usd: 0, chars: countChars(texts) };
+      },
+    };
+  }
+  const engine = getEngine(id, keys);
+  return {
+    id,
+    async translateBatch(items, title) {
+      return { ...(await engine.translateBatch(items, title)), chars: 0 };
+    },
+  };
 }

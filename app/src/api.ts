@@ -201,6 +201,6 @@ export interface Spend {
   month: string;
   cap: number;
   total: number;
-  byEngine: Record<string, { usd: number; calls: number }>;
+  byEngine: Record<string, { usd: number; calls: number; chars?: number }>;
 }
 export const getSpend = () => request<Spend>('/api/spend');
