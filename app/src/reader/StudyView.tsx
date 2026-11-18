@@ -227,10 +227,13 @@ export function StudyView({ book, settings, ch, clearRef, onPatchSettings, ann, 
                       </div>
                       {active === sid && (
                         <div class="study-actions" dir="rtl">
-                          <button class="act" aria-pressed={opened.has(sid)} onClick={() => toggleOpen(sid)}>
-                            <Icon name="translate" size={18} />
-                            תרגום
-                          </button>
+                          {/* כשהתרגום המקביל פעיל, התרגום כבר מוצג או נחשף בשורה "הצג תרגום" */}
+                          {parallel === 'off' && (
+                            <button class="act" aria-pressed={opened.has(sid)} onClick={() => toggleOpen(sid)}>
+                              <Icon name="translate" size={18} />
+                              תרגום
+                            </button>
+                          )}
                           <button class="act" aria-pressed={speaking === sid} onClick={() => toggleSpeak(text, sid)}>
                             <Icon name={speaking === sid ? 'stop' : 'speak'} size={18} />
                             {speaking === sid ? 'עצירה' : 'השמעה'}
@@ -342,7 +345,7 @@ function TranslationLine(props: {
     );
   }
   if (!visible) return null;
-  if (tr?.state === 'loading' || (!tr && props.pending)) return <div class="study-tr muted">מתרגם…</div>;
+  if (tr?.state === 'loading' || (!tr && props.pending)) return <div class="study-tr muted" role="status">מתרגם…</div>;
   if (!tr || tr.state === 'error') {
     // הפרק תורגם אבל המשפט הזה חסר בו, או שהתרגום נכשל
     return (
@@ -352,7 +355,7 @@ function TranslationLine(props: {
     );
   }
   return (
-    <div class="study-tr" dir="rtl" lang="he" onClick={props.onHide} role={props.onHide ? 'button' : undefined}>
+    <div class="study-tr" dir="rtl" lang="he" aria-live="polite" onClick={props.onHide} role={props.onHide ? 'button' : undefined}>
       {tr.text}
     </div>
   );

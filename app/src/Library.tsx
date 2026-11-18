@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { parseSentenceId, type BookMeta } from '../../shared/book';
-import { deleteBook, importBook, listBooks, searchGutenberg, type SearchResult } from './api';
+import { deleteBook, friendlyError, importBook, listBooks, searchGutenberg, type SearchResult } from './api';
 import { levelRank } from './levels';
 import { Cover } from './Cover';
 import { Icon } from './Icon';
@@ -87,7 +87,7 @@ export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog }: Pro
   const refresh = () =>
     listBooks()
       .then(setBooks)
-      .catch((e: Error) => setError(e.message));
+      .catch((e: Error) => setError(friendlyError(e)));
 
   useEffect(() => {
     refresh();
@@ -104,7 +104,7 @@ export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog }: Pro
       setByNumber('');
       onOpen(book);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'הייבוא נכשל');
+      setError(friendlyError(e, 'הייבוא נכשל'));
     } finally {
       setImporting(null);
     }
@@ -118,7 +118,7 @@ export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog }: Pro
     try {
       setResults(await searchGutenberg(query.trim()));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'החיפוש נכשל');
+      setError(friendlyError(err, 'החיפוש נכשל'));
     } finally {
       setSearching(false);
     }
@@ -143,7 +143,7 @@ export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog }: Pro
       await refresh();
       onOpen(book);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'ההעלאה נכשלה');
+      setError(friendlyError(e, 'ההעלאה נכשלה'));
     } finally {
       setUploading(null);
     }
@@ -160,7 +160,6 @@ export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog }: Pro
     return best?.b ?? null;
   }, [books]);
   const shelf = sorted?.filter((b) => b.id !== current?.id) ?? null;
-  const showAdd = addOpen || books?.length === 0;
 
   const removeBook = async (b: BookMeta) => {
     setMenuFor(null);
@@ -168,12 +167,134 @@ export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog }: Pro
     refresh();
   };
 
+  const addBlock = (
+    <>
+      <div class="add-row">
+        <button class="secondary" onClick={() => onOpenCatalog(have)}>
+          <Icon name="books" size={18} />
+          קטלוגים: ספרים לפי רמה
+        </button>
+        <label class={`btn secondary ${uploading ? 'disabled' : ''}`}>
+          <Icon name="upload" size={18} />
+          {uploading ? <span class="busy">{uploading}</span> : 'העלאת קובץ: EPUB, PDF או TXT'}
+          <input
+            type="file"
+            accept={ACCEPT}
+            hidden
+            disabled={!!uploading}
+            onChange={(e) => {
+              const f = e.currentTarget.files?.[0];
+              e.currentTarget.value = '';
+              onUpload(f);
+            }}
+          />
+        </label>
+      </div>
+
+      <section class="card" aria-labelledby="h-add">
+        <h2 id="h-add">הוספת ספר מ-Project Gutenberg</h2>
+
+        {SUGGESTIONS.some((s) => !have.has(`gutenberg-${s.id}`)) && (
+          <>
+            <h3 class="sub-h">מומלצים לרמה בינונית</h3>
+            <ul class="suggestions">
+              {SUGGESTIONS.filter((s) => !have.has(`gutenberg-${s.id}`)).map((s) => (
+                <li key={s.id}>
+                  <button
+                    class="suggestion"
+                    disabled={importing !== null}
+                    onClick={() => doImport(s.id, { title: s.title, author: s.author })}
+                  >
+                    <span class="level">{s.level}</span>
+                    <span class="grow">
+                      <span class="en sug-title" lang="en">
+                        {s.title}
+                      </span>
+                      <span class="muted small">
+                        {importing === s.id ? <span class="busy">מייבא… זה לוקח כחצי דקה</span> : `${s.author} · ${s.note}`}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <h3 class="sub-h">חיפוש ב-Gutenberg</h3>
+          </>
+        )}
+
+        <form class="row" onSubmit={doSearch}>
+          <input
+            type="search"
+            class="grow en-input"
+            dir="auto"
+            placeholder="שם ספר או סופר באנגלית"
+            value={query}
+            onInput={(e) => setQuery(e.currentTarget.value)}
+          />
+          <button type="submit" disabled={searching || !query.trim()}>
+            {searching ? <span class="busy">מחפש…</span> : 'חיפוש'}
+          </button>
+        </form>
+
+        {results && results.length === 0 && <p class="muted">לא נמצאו ספרים.</p>}
+        {results && results.length > 0 && (
+          <ul class="results">
+            {results.map((r) => (
+              <li key={r.gutenbergId}>
+                <div class="grow">
+                  <div class="en" lang="en">
+                    {r.title}
+                  </div>
+                  <div class="muted en" lang="en">
+                    {r.author}
+                  </div>
+                </div>
+                <button
+                  class="secondary"
+                  disabled={importing !== null || have.has(`gutenberg-${r.gutenbergId}`)}
+                  onClick={() => doImport(r.gutenbergId, { title: r.title, author: r.author })}
+                >
+                  {have.has(`gutenberg-${r.gutenbergId}`) ? 'קיים' : importing === r.gutenbergId ? <span class="busy">מייבא…</span> : 'ייבוא'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <details class="by-number">
+          <summary>ייבוא לפי מספר ספר ב-Gutenberg</summary>
+          <form
+            class="row"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const n = parseInt(byNumber, 10);
+              if (n > 0) doImport(n);
+            }}
+          >
+            <input
+              type="text"
+              inputMode="numeric"
+              class="grow"
+              placeholder="למשל 1513"
+              value={byNumber}
+              onInput={(e) => setByNumber(e.currentTarget.value.replace(/\D/g, ''))}
+            />
+            <button type="submit" disabled={importing !== null || !byNumber}>
+              {importing !== null ? <span class="busy">מייבא…</span> : 'ייבוא'}
+            </button>
+          </form>
+          <p class="muted small">המספר מופיע בכתובת הספר באתר: gutenberg.org/ebooks/1513</p>
+        </details>
+      </section>
+    </>
+  );
+
   return (
     <main class="page library">
       <div class="row top-row">
-        <h1>הספרייה</h1>
+        <h1>חדר קריאה</h1>
         <span class="spacer" />
-        <button class="icon-btn" onClick={() => setAddOpen(!addOpen)} aria-expanded={showAdd} aria-label="הוספת ספר">
+        <button class="icon-btn" onClick={() => setAddOpen(!addOpen)} aria-expanded={addOpen} aria-label="הוספת ספר">
           <Icon name="plus" />
         </button>
         <button class="icon-btn" onClick={onOpenSettings} aria-label="הגדרות">
@@ -303,131 +424,25 @@ export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog }: Pro
 
       {books?.length === 0 && (
         <section class="empty">
-          <h2>הספרייה מחכה לספר הראשון</h2>
+          <h2>חדר הקריאה מחכה לספר הראשון</h2>
           <p class="muted">אפשר לבחור ספר לפי רמה מהקטלוגים, לייבא מ-Gutenberg, או להעלות קובץ EPUB, PDF או TXT.</p>
         </section>
       )}
 
-      {showAdd && (
-        <>
-      <div class="add-row">
-        <button class="secondary" onClick={() => onOpenCatalog(have)}>
-          <Icon name="books" size={18} />
-          קטלוגים: ספרים לפי רמה
-        </button>
-        <label class={`btn secondary ${uploading ? 'disabled' : ''}`}>
-          <Icon name="upload" size={18} />
-          {uploading ?? 'העלאת קובץ: EPUB, PDF או TXT'}
-          <input
-            type="file"
-            accept={ACCEPT}
-            hidden
-            disabled={!!uploading}
-            onChange={(e) => {
-              const f = e.currentTarget.files?.[0];
-              e.currentTarget.value = '';
-              onUpload(f);
-            }}
-          />
-        </label>
-      </div>
-
-      <section class="card" aria-labelledby="h-add">
-        <h2 id="h-add">הוספת ספר מ-Project Gutenberg</h2>
-
-        {SUGGESTIONS.some((s) => !have.has(`gutenberg-${s.id}`)) && (
-          <>
-            <h3 class="sub-h">מומלצים לרמה בינונית</h3>
-            <ul class="suggestions">
-              {SUGGESTIONS.filter((s) => !have.has(`gutenberg-${s.id}`)).map((s) => (
-                <li key={s.id}>
-                  <button
-                    class="suggestion"
-                    disabled={importing !== null}
-                    onClick={() => doImport(s.id, { title: s.title, author: s.author })}
-                  >
-                    <span class="level">{s.level}</span>
-                    <span class="grow">
-                      <span class="en sug-title" lang="en">
-                        {s.title}
-                      </span>
-                      <span class="muted small">
-                        {importing === s.id ? 'מייבא…' : `${s.author} · ${s.note}`}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <h3 class="sub-h">חיפוש ב-Gutenberg</h3>
-          </>
-        )}
-
-        <form class="row" onSubmit={doSearch}>
-          <input
-            type="search"
-            class="grow en-input"
-            dir="auto"
-            placeholder="שם ספר או סופר באנגלית"
-            value={query}
-            onInput={(e) => setQuery(e.currentTarget.value)}
-          />
-          <button type="submit" disabled={searching || !query.trim()}>
-            {searching ? 'מחפש…' : 'חיפוש'}
-          </button>
-        </form>
-
-        {results && results.length === 0 && <p class="muted">לא נמצאו ספרים.</p>}
-        {results && results.length > 0 && (
-          <ul class="results">
-            {results.map((r) => (
-              <li key={r.gutenbergId}>
-                <div class="grow">
-                  <div class="en" lang="en">
-                    {r.title}
-                  </div>
-                  <div class="muted en" lang="en">
-                    {r.author}
-                  </div>
-                </div>
-                <button
-                  class="secondary"
-                  disabled={importing !== null || have.has(`gutenberg-${r.gutenbergId}`)}
-                  onClick={() => doImport(r.gutenbergId, { title: r.title, author: r.author })}
-                >
-                  {have.has(`gutenberg-${r.gutenbergId}`) ? 'קיים' : importing === r.gutenbergId ? 'מייבא…' : 'ייבוא'}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <details class="by-number">
-          <summary>ייבוא לפי מספר ספר ב-Gutenberg</summary>
-          <form
-            class="row"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const n = parseInt(byNumber, 10);
-              if (n > 0) doImport(n);
-            }}
-          >
-            <input
-              type="text"
-              inputMode="numeric"
-              class="grow"
-              placeholder="למשל 1513"
-              value={byNumber}
-              onInput={(e) => setByNumber(e.currentTarget.value.replace(/\D/g, ''))}
-            />
-            <button type="submit" disabled={importing !== null || !byNumber}>
-              {importing !== null ? 'מייבא…' : 'ייבוא'}
-            </button>
-          </form>
-          <p class="muted small">המספר מופיע בכתובת הספר באתר: gutenberg.org/ebooks/1513</p>
-        </details>
-      </section>
-        </>
+      {books?.length === 0 && addBlock}
+      {addOpen && books && books.length > 0 && (
+        <div class="overlay" onClick={() => setAddOpen(false)}>
+          <div class="sheet add-sheet" role="dialog" aria-label="הוספת ספר" onClick={(e) => e.stopPropagation()}>
+            <div class="sheet-head">
+              <h2>הוספת ספר</h2>
+              <span class="spacer" />
+              <button class="icon-btn" aria-label="סגירה" onClick={() => setAddOpen(false)}>
+                <Icon name="close" />
+              </button>
+            </div>
+            {addBlock}
+          </div>
+        </div>
       )}
     </main>
   );

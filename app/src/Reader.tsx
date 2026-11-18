@@ -30,6 +30,24 @@ export function Reader({ book, settings, onBack, onOpenSettings, onPatchSettings
   const [tocOpen, setTocOpen] = useState(false);
   const [editing, setEditing] = useState<{ sid: string; sentence: string; existing?: Annotation } | null>(null);
   const study = settings.viewMode === 'study';
+  // קריאה בלי סרגלים: נגיעה במרכז המסך מסתירה ומחזירה אותם (רק במצב קריאה)
+  const [immersiveOn, setImmersiveOn] = useState(() => {
+    try {
+      return localStorage.getItem('reader.immersive') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const immersive = immersiveOn && !study;
+  const toggleImmersive = () => {
+    const next = !immersiveOn;
+    setImmersiveOn(next);
+    try {
+      localStorage.setItem('reader.immersive', next ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  };
   const View = study ? StudyView : ReadingView;
 
   // התקדמות: כמה מהפרק הנוכחי עבר, וכמה מהספר
@@ -51,6 +69,7 @@ export function Reader({ book, settings, onBack, onOpenSettings, onPatchSettings
 
   return (
     <div class="reader">
+      {!immersive && (
       <ReaderHeader
         book={book}
         chapterIdx={ch.chapterIdx}
@@ -60,6 +79,7 @@ export function Reader({ book, settings, onBack, onOpenSettings, onPatchSettings
         onOpenToc={() => setTocOpen(true)}
         onOpenSettings={onOpenSettings}
       />
+      )}
       <View
         book={book}
         settings={settings}
@@ -69,6 +89,8 @@ export function Reader({ book, settings, onBack, onOpenSettings, onPatchSettings
         ann={ann}
         onEditNote={onEditNote}
         percent={percent}
+        immersive={immersive}
+        onToggleImmersive={toggleImmersive}
       />
 
       {tocOpen && (

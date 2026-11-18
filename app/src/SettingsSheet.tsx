@@ -2,11 +2,33 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { ENGINES } from '../../shared/translate';
 import { getSpend, type Session, type Spend } from './api';
 import { collectDiagnostics } from './diagnostics';
-import type { DeviceSettings, Theme } from './deviceSettings';
+import type { DeviceSettings, FontFamily, Theme } from './deviceSettings';
 import { Icon } from './Icon';
 
+const FONTS: { id: FontFamily; label: string }[] = [
+  { id: 'serif', label: 'Georgia' },
+  { id: 'literata', label: 'Literata' },
+  { id: 'source-serif', label: 'Source Serif' },
+  { id: 'sans', label: 'Sans' },
+  { id: 'lexend', label: 'Lexend' },
+];
+
+const SAMPLE_FALLBACK = 'Once upon a time there were four little Rabbits, and their names were Flopsy, Mopsy, Cotton-tail, and Peter.';
+
+/** טקסט לדוגמה מהספר הפתוח (אם יש): כמה משפטים ראשונים באורך סביר; אחרת משפט קבוע */
+function bookSample(): string {
+  const els = Array.from(document.querySelectorAll<HTMLElement>('.pages [data-sid], .study-list [data-sid]'));
+  const out: string[] = [];
+  for (const el of els) {
+    const t = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
+    if (t.length >= 40 && t.length <= 220) out.push(t);
+    if (out.join(' ').length > 120) break;
+  }
+  return out.join(' ') || SAMPLE_FALLBACK;
+}
+
 const THEMES: { id: Theme; label: string }[] = [
-  { id: 'auto', label: 'אוטו' },
+  { id: 'auto', label: 'אוטומטי' },
   { id: 'light', label: 'בהיר' },
   { id: 'dark', label: 'כהה' },
   { id: 'sepia', label: 'ספיה' },
@@ -41,6 +63,8 @@ function Stepper(props: { label: string; value: string; onDec: () => void; onInc
 export function SettingsSheet({ settings: s, session, onChange, onClose, onLogout }: Props) {
   const [spend, setSpend] = useState<Spend | null>(null);
   const diag = useMemo(collectDiagnostics, []);
+  const sample = useMemo(bookSample, []);
+  const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
   useEffect(() => {
     getSpend().then(setSpend).catch(() => {});
   }, []);
@@ -58,6 +82,10 @@ export function SettingsSheet({ settings: s, session, onChange, onClose, onLogou
           </button>
         </div>
 
+        <p class="settings-preview en" lang="en" dir="ltr" style={{ fontSize: `${s.fontSize}px`, lineHeight: String(s.lineHeight) }} data-font={s.fontFamily}>
+          {sample}
+        </p>
+
         <div class="segmented themes" role="group" aria-label="ערכת צבע">
           {THEMES.map((t) => (
             <button key={t.id} aria-pressed={s.theme === t.id} onClick={() => set({ theme: t.id })}>
@@ -66,13 +94,18 @@ export function SettingsSheet({ settings: s, session, onChange, onClose, onLogou
           ))}
         </div>
 
-        <div class="segmented two" role="group" aria-label="גופן">
-          <button aria-pressed={s.fontFamily === 'serif'} onClick={() => set({ fontFamily: 'serif' })}>
-            <span class="serif-sample">Serif</span>
-          </button>
-          <button aria-pressed={s.fontFamily === 'sans'} onClick={() => set({ fontFamily: 'sans' })}>
-            <span class="sans-sample">Sans</span>
-          </button>
+        {s.theme === 'auto' && (
+          <p class="muted small theme-note">
+            כרגע: {systemDark ? 'כהה' : 'בהיר'} · עוקב אחרי המכשיר ומתחלף כשהוא עובר בין יום ללילה
+          </p>
+        )}
+
+        <div class="segmented fonts" role="group" aria-label="גופן">
+          {FONTS.map((f) => (
+            <button key={f.id} class={`font-${f.id}`} aria-pressed={s.fontFamily === f.id} onClick={() => set({ fontFamily: f.id })}>
+              {f.label}
+            </button>
+          ))}
         </div>
 
         <Stepper

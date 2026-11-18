@@ -9,7 +9,7 @@ import { usePagination } from './usePagination';
 import { useSelection } from './useSelection';
 import { useSentenceTranslations } from './useSentenceTranslations';
 
-export function ReadingView({ book, settings, ch, clearRef, ann, onEditNote, percent }: ViewProps) {
+export function ReadingView({ book, settings, ch, clearRef, ann, onEditNote, percent, immersive, onToggleImmersive }: ViewProps) {
   const pg = usePagination({
     chapter: ch.chapter,
     settings,
@@ -101,6 +101,7 @@ export function ReadingView({ book, settings, ch, clearRef, ann, onEditNote, per
     const x = (e.clientX - rect.left) / rect.width;
     if (x < 0.3) prev();
     else if (x > 0.7) next();
+    else onToggleImmersive();
   };
 
   // ---------- תצוגה ----------
@@ -135,6 +136,7 @@ export function ReadingView({ book, settings, ch, clearRef, ann, onEditNote, per
         )}
       </div>
 
+      {!immersive && (
       <footer class="reader-foot" dir="ltr">
         <button class="nav-btn" onClick={prev} aria-label="עמוד קודם">
           <Icon name="chevronLeft" size={24} />
@@ -152,6 +154,7 @@ export function ReadingView({ book, settings, ch, clearRef, ann, onEditNote, per
           <Icon name="chevronRight" size={24} />
         </button>
       </footer>
+      )}
 
       {selection.sel && (
         <WordSheet

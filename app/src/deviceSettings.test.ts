@@ -27,4 +27,10 @@ describe('parseSettings', () => {
     expect(s.theme).toBe('sepia');
     expect(s.lineHeight).toBe(DEFAULT_SETTINGS.lineHeight);
   });
+
+  it('גופנים חדשים ואפשרות "אוטומטי" נשמרים; גופן לא מוכר חוזר ל-serif', () => {
+    expect(parseSettings(JSON.stringify({ fontFamily: 'literata', theme: 'auto' }))).toMatchObject({ fontFamily: 'literata', theme: 'auto' });
+    expect(parseSettings(JSON.stringify({ fontFamily: 'lexend' })).fontFamily).toBe('lexend');
+    expect(parseSettings(JSON.stringify({ fontFamily: 'comic-sans' })).fontFamily).toBe('serif');
+  });
 });

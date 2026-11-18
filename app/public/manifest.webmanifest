@@ -1,6 +1,6 @@
 {
-  "name": "קורא ספרים",
-  "short_name": "קורא",
+  "name": "חדר קריאה",
+  "short_name": "חדר קריאה",
   "lang": "he",
   "dir": "rtl",
   "start_url": "./",

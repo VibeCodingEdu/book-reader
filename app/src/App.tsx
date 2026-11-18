@@ -124,7 +124,7 @@ function LoginScreen({ onDone }: { onDone: (s: Session) => void }) {
 
   return (
     <main class="page">
-      <h1>קורא ספרים</h1>
+      <h1>חדר קריאה</h1>
       <section class="card">
         <h2>התחברות</h2>
         <form

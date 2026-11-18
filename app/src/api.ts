@@ -47,6 +47,16 @@ export class ApiError extends Error {
   }
 }
 
+/** הודעה ידידותית למשתמש (בלי פרטים טכניים כמו "חסר מפתח Claude בשרת") */
+export function friendlyError(e: unknown, fallback = 'משהו השתבש. נסו שוב.'): string {
+  if (!(e instanceof ApiError)) return e instanceof Error && e.message ? e.message : fallback;
+  if (e.status === 0) return 'אין חיבור לשרת. בדקו את הרשת ונסו שוב.';
+  if (e.status === 402) return 'הגעתם לתקרת ההוצאה החודשית על תרגום.';
+  if (e.status === 503) return 'התרגום לא זמין כרגע. נסו שוב בעוד רגע.';
+  if (e.status === 502) return 'המנוע לא החזיר תרגום תקין. נסו שוב.';
+  return e.message || fallback;
+}
+
 /** נקרא כשהשרת מחזיר 401 – האפליקציה חוזרת למסך ההתחברות */
 let onUnauthorized: () => void = () => {};
 export function setUnauthorizedHandler(fn: () => void) {

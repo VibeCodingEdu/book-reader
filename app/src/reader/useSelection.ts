@@ -5,7 +5,7 @@
 import type { RefObject } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { parseSentenceId, type BookMeta, type Chapter } from '../../../shared/book';
-import { lookupWord, translateText } from '../api';
+import { friendlyError, lookupWord, translateText } from '../api';
 import type { DeviceSettings } from '../deviceSettings';
 import { tokenize, unitTokenOffsets } from '../paging';
 import type { RangeSel, RangeStartSel, Selection, WordSel } from '../WordSheet';
@@ -44,7 +44,7 @@ export function useSelection({ book, chapter, settings, rootRef }: Options) {
       });
       if (id === reqId.current) setSel({ ...base, state: 'done', result: res.result, engine: res.engine, cached: res.cached } as WordSel);
     } catch (e) {
-      if (id === reqId.current) setSel({ ...base, state: 'error', error: e instanceof Error ? e.message : 'שגיאה' } as WordSel);
+      if (id === reqId.current) setSel({ ...base, state: 'error', error: friendlyError(e) } as WordSel);
     }
   };
 
@@ -55,7 +55,7 @@ export function useSelection({ book, chapter, settings, rootRef }: Options) {
       const res = await translateText({ text: base.text, context: base.context, lang: book.lang, engine: settings.engine || undefined });
       if (id === reqId.current) setSel({ ...base, state: 'done', result: res.result, engine: res.engine, cached: res.cached } as RangeSel);
     } catch (e) {
-      if (id === reqId.current) setSel({ ...base, state: 'error', error: e instanceof Error ? e.message : 'שגיאה' } as RangeSel);
+      if (id === reqId.current) setSel({ ...base, state: 'error', error: friendlyError(e) } as RangeSel);
     }
   };
 

@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import type { BookMeta } from '../../../shared/book';
-import { translateChapter, translateSentence } from '../api';
+import { friendlyError, translateChapter, translateSentence } from '../api';
 import type { DeviceSettings } from '../deviceSettings';
 
 export type SentenceTr = { state: 'loading' } | { state: 'done'; text: string } | { state: 'error'; error: string };
@@ -42,7 +42,7 @@ export function useSentenceTranslations(book: BookMeta, chapterIdx: number | nul
     } catch (e) {
       if (g !== gen.current) return;
       setChapterState('error');
-      setChapterError(e instanceof Error ? e.message : 'התרגום נכשל');
+      setChapterError(friendlyError(e, 'התרגום נכשל'));
     }
   }, [book.id, chapterIdx, engine]);
 
@@ -57,7 +57,7 @@ export function useSentenceTranslations(book: BookMeta, chapterIdx: number | nul
         setById((prev) => ({ ...prev, [sid]: { state: 'done', text: res.translation } }));
       } catch (e) {
         if (g !== gen.current) return;
-        setById((prev) => ({ ...prev, [sid]: { state: 'error', error: e instanceof Error ? e.message : 'התרגום נכשל' } }));
+        setById((prev) => ({ ...prev, [sid]: { state: 'error', error: friendlyError(e, 'התרגום נכשל') } }));
       }
     },
     [book.id, chapterIdx, engine],

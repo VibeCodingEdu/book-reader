@@ -118,7 +118,7 @@ export function Catalog(props: { have: Set<string>; onBack: () => void; onUpload
   return (
     <main class="page">
       <div class="row top-row">
-        <button class="icon-btn" onClick={props.onBack} aria-label="חזרה לספרייה">
+        <button class="icon-btn" onClick={props.onBack} aria-label="חזרה לחדר קריאה">
           <Icon name="back" />
         </button>
         <h1>קטלוגים</h1>

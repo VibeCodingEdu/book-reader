@@ -20,4 +20,7 @@ export interface ViewProps {
   onEditNote: (sid: string, sentence: string, existing?: Annotation) => void;
   /** אחוז מהספר (או null אם לא ידוע) */
   percent: number | null;
+  /** מצב קריאה בלי סרגלים (נגיעה במרכז המסך מחליפה) */
+  immersive: boolean;
+  onToggleImmersive: () => void;
 }

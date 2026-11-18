@@ -54,7 +54,7 @@ export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSe
     sel.kind === 'range' ? sel.text : sel.kind === 'word' && sel.state === 'done' ? sel.result.unit : sel.word;
 
   return (
-    <div class="sheet" role="dialog" aria-label="תרגום" onClick={(e) => e.stopPropagation()}>
+    <div class="sheet" role="dialog" aria-label="תרגום" aria-live="polite" onClick={(e) => e.stopPropagation()}>
       <div class="sheet-head">
         <div class={`sheet-word en ${sel.kind === 'range' ? 'passage' : ''}`} lang="en">
           {heading}
@@ -83,7 +83,7 @@ export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSe
           תרגם
         </button>
       )}
-      {sel.kind !== 'range-start' && sel.state === 'loading' && <p class="sheet-muted">מתרגם בהקשר…</p>}
+      {sel.kind !== 'range-start' && sel.state === 'loading' && <p class="sheet-muted loading-line">מתרגם בהקשר…</p>}
       {sel.kind !== 'range-start' && sel.state === 'error' && <p class="msg bad">{sel.error}</p>}
 
       {sel.kind === 'word' && sel.state === 'done' && <LookupBody r={sel.result} engine={sel.engine} cached={sel.cached} />}

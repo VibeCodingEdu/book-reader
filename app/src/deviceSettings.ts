@@ -7,7 +7,7 @@ export type Theme = 'auto' | 'light' | 'dark' | 'sepia' | 'eink';
 export interface DeviceSettings {
   theme: Theme;
   fontSize: number; // px
-  fontFamily: 'serif' | 'sans';
+  fontFamily: FontFamily;
   lineHeight: number; // 1.2–2.2
   margin: number; // px בצדדים
   engine: string; // מנוע התרגום
@@ -20,6 +20,8 @@ export interface DeviceSettings {
   updatedAt: number;
 }
 
+export type FontFamily = 'serif' | 'sans' | 'literata' | 'source-serif' | 'lexend';
+export const FONT_FAMILIES: FontFamily[] = ['serif', 'sans', 'literata', 'source-serif', 'lexend'];
 export type ViewMode = 'read' | 'study';
 export type ParallelMode = 'off' | 'show' | 'hide';
 
@@ -48,7 +50,7 @@ export function normalizeSettings(obj: Partial<DeviceSettings> | null | undefine
   return {
     theme: THEMES.includes(o.theme as Theme) ? (o.theme as Theme) : DEFAULT_SETTINGS.theme,
     fontSize: num(o.fontSize, 12, 40, DEFAULT_SETTINGS.fontSize),
-    fontFamily: o.fontFamily === 'sans' ? 'sans' : 'serif',
+    fontFamily: FONT_FAMILIES.includes(o.fontFamily as FontFamily) ? (o.fontFamily as FontFamily) : 'serif',
     lineHeight: num(o.lineHeight, 1.2, 2.2, DEFAULT_SETTINGS.lineHeight),
     margin: num(o.margin, 4, 64, DEFAULT_SETTINGS.margin),
     engine: typeof o.engine === 'string' ? o.engine : '',
