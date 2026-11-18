@@ -21,10 +21,10 @@
   --tap: 48px;
   --border-w: 1px;
   --transition: 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  --font-ui: system-ui, -apple-system, 'Segoe UI', 'Noto Sans Hebrew', Arial, sans-serif;
+  --font-ui: 'Heebo', system-ui, -apple-system, 'Segoe UI', 'Noto Sans Hebrew', Arial, sans-serif;
   --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Noto Serif', 'Times New Roman', serif;
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
-  --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Noto Serif Hebrew', 'Noto Serif', serif;
+  --font-display: 'Frank Ruhl Libre', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Noto Serif Hebrew', 'Noto Serif', serif;
   color-scheme: light;
 }
 
@@ -111,7 +111,7 @@ html, body {
     max(32px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
 }
 
-h1 { font-family: var(--font-display); font-size: 1.9rem; font-weight: 600; letter-spacing: -0.01em; margin: 8px 0 16px; }
+h1 { font-family: var(--font-display); font-size: 2rem; font-weight: 700; letter-spacing: -0.01em; margin: 8px 0 16px; }
 h2 { font-size: 1.1rem; font-weight: 650; margin: 0 0 12px; }
 
 .card {
@@ -272,7 +272,7 @@ select { min-height: var(--tap); padding: 6px 12px; }
 .pages p:first-of-type { text-indent: 0; }
 .pages.serif { font-family: var(--font-serif); }
 .pages.sans { font-family: var(--font-sans); }
-.chapter-title { font-family: var(--font-display); font-size: 1.3em; font-weight: 600; font-style: italic; margin: 0.8em 0 1em; text-align: center; break-after: avoid; }
+.chapter-title { font-family: var(--font-display); font-size: 1.35em; font-weight: 700; margin: 0.8em 0 1em; text-align: center; break-after: avoid; }
 .w { cursor: pointer; border-radius: 3px; }
 .w.hl { background: color-mix(in srgb, var(--accent) 22%, transparent); }
 :root[data-theme='eink'] .w.hl { background: none; outline: 2px solid #000; outline-offset: 1px; }
