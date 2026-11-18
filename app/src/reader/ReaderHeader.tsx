@@ -4,6 +4,7 @@
 import { useState } from 'preact/hooks';
 import type { BookMeta } from '../../../shared/book';
 import { AudioPanel } from '../AudioPanel';
+import { Icon } from '../Icon';
 import type { ViewMode } from '../deviceSettings';
 
 interface Props {
@@ -24,22 +25,22 @@ export function ReaderHeader({ book, chapterIdx, viewMode, onToggleMode, onBack,
     <>
       <header class="reader-bar">
         <button class="icon-btn" onClick={onBack} aria-label="חזרה לספרייה">
-          →
+          <Icon name="back" />
         </button>
         <button class="toc-btn" onClick={onOpenToc} aria-label="תוכן עניינים, סימניות והערות">
-          <span aria-hidden="true">☰</span>
+          <Icon name="toc" size={18} />
           <span class="toc-btn-title" dir="auto">
             {chapterIdx !== null ? book.chapterTitles[chapterIdx] : ''}
           </span>
         </button>
-        <button
-          class="icon-btn"
-          onClick={onToggleMode}
-          aria-label={viewMode === 'study' ? 'מעבר למצב קריאה' : 'מעבר למצב לימוד'}
-          title={viewMode === 'study' ? 'קריאה' : 'לימוד'}
-        >
-          {viewMode === 'study' ? '📖' : '📝'}
-        </button>
+        <div class="segmented mode-switch" role="group" aria-label="מצב תצוגה">
+          <button aria-pressed={viewMode === 'read'} onClick={() => viewMode !== 'read' && onToggleMode()}>
+            קריאה
+          </button>
+          <button aria-pressed={viewMode === 'study'} onClick={() => viewMode !== 'study' && onToggleMode()}>
+            לימוד
+          </button>
+        </div>
         {book.audioUrl && (
           <button
             class="icon-btn"
@@ -50,11 +51,11 @@ export function ReaderHeader({ book, chapterIdx, viewMode, onToggleMode, onBack,
               setAudioOpen(!audioOpen);
             }}
           >
-            🎧
+            <Icon name="headphones" />
           </button>
         )}
         <button class="icon-btn" onClick={onOpenSettings} aria-label="הגדרות תצוגה">
-          Aa
+          <Icon name="type" />
         </button>
       </header>
       {/* הנגן נשאר מחובר גם כשהוא מוסתר, כדי שההשמעה תמשיך */}

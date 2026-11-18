@@ -3,8 +3,10 @@ import { ENGINES } from '../../shared/translate';
 import { getSpend, type Session, type Spend } from './api';
 import { collectDiagnostics } from './diagnostics';
 import type { DeviceSettings, Theme } from './deviceSettings';
+import { Icon } from './Icon';
 
 const THEMES: { id: Theme; label: string }[] = [
+  { id: 'auto', label: 'אוטו' },
   { id: 'light', label: 'בהיר' },
   { id: 'dark', label: 'כהה' },
   { id: 'sepia', label: 'ספיה' },
@@ -52,11 +54,11 @@ export function SettingsSheet({ settings: s, session, onChange, onClose, onLogou
           <h2>הגדרות ל{session.device}</h2>
           <span class="spacer" />
           <button class="icon-btn" aria-label="סגירה" onClick={onClose}>
-            ✕
+            <Icon name="close" />
           </button>
         </div>
 
-        <div class="segmented" role="group" aria-label="ערכת צבע">
+        <div class="segmented themes" role="group" aria-label="ערכת צבע">
           {THEMES.map((t) => (
             <button key={t.id} aria-pressed={s.theme === t.id} onClick={() => set({ theme: t.id })}>
               {t.label}

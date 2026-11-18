@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { parseSentenceId, type BookMeta } from '../../shared/book';
 import { deleteBook, importBook, listBooks, searchGutenberg, type SearchResult } from './api';
 import { levelRank } from './levels';
+import { Cover } from './Cover';
+import { Icon } from './Icon';
 import { loadLocalPosition } from './position';
 import { ACCEPT, uploadFile } from './upload';
 
@@ -17,6 +19,29 @@ function readPercent(bookId: string): number | null {
   }
 }
 const SORT_KEY = 'reader.librarySort';
+
+const OPENED_KEY = (id: string) => `reader.lastOpened.${id}`;
+function lastOpened(id: string): number {
+  try {
+    return Number(localStorage.getItem(OPENED_KEY(id))) || 0;
+  } catch {
+    return 0;
+  }
+}
+function markOpened(id: string) {
+  try {
+    localStorage.setItem(OPENED_KEY(id), String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** "פרק 3 מתוך 12" לפי המיקום השמור */
+function chapterNote(b: BookMeta): string {
+  const pos = loadLocalPosition(b.id);
+  const ch = pos ? parseSentenceId(pos.sentenceId)?.c : undefined;
+  return ch === undefined ? `${b.chapterCount} פרקים` : `פרק ${ch + 1} מתוך ${b.chapterCount}`;
+}
 
 // ספרים קלים יחסית ברשות הציבור, לפי רמה (הערכה גסה; אלה גרסאות מקוריות, לא מפושטות).
 const SUGGESTIONS = [
@@ -35,7 +60,11 @@ interface Props {
   onOpenCatalog: (have: Set<string>) => void;
 }
 
-export function Library({ onOpen, onOpenSettings, onOpenCatalog }: Props) {
+export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog }: Props) {
+  const onOpen = (b: BookMeta) => {
+    markOpened(b.id);
+    openBook(b);
+  };
   const [books, setBooks] = useState<BookMeta[] | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
   const [mySort, setMySort] = useState<MySort>(() => {
@@ -51,6 +80,9 @@ export function Library({ onOpen, onOpenSettings, onOpenCatalog }: Props) {
   const [searching, setSearching] = useState(false);
   const [importing, setImporting] = useState<number | null>(null);
   const [byNumber, setByNumber] = useState('');
+  // אזור ההוספה מקופל כשיש ספרים; תפריט מחיקה פתוח לספר אחד
+  const [addOpen, setAddOpen] = useState(false);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
 
   const refresh = () =>
     listBooks()
@@ -117,13 +149,35 @@ export function Library({ onOpen, onOpenSettings, onOpenCatalog }: Props) {
     }
   };
 
+  // הספר שנקרא לאחרונה (לפי המיקום השמור במכשיר) – בכרטיס "ממשיכים לקרוא"
+  const current = useMemo(() => {
+    if (!books?.length) return null;
+    let best: { b: BookMeta; t: number } | null = null;
+    for (const b of books) {
+      const t = Math.max(loadLocalPosition(b.id)?.updatedAt ?? 0, lastOpened(b.id));
+      if (t && (!best || t > best.t)) best = { b, t };
+    }
+    return best?.b ?? null;
+  }, [books]);
+  const shelf = sorted?.filter((b) => b.id !== current?.id) ?? null;
+  const showAdd = addOpen || books?.length === 0;
+
+  const removeBook = async (b: BookMeta) => {
+    setMenuFor(null);
+    await deleteBook(b.id).catch(() => {});
+    refresh();
+  };
+
   return (
-    <main class="page">
+    <main class="page library">
       <div class="row top-row">
         <h1>הספרייה</h1>
         <span class="spacer" />
+        <button class="icon-btn" onClick={() => setAddOpen(!addOpen)} aria-expanded={showAdd} aria-label="הוספת ספר">
+          <Icon name="plus" />
+        </button>
         <button class="icon-btn" onClick={onOpenSettings} aria-label="הגדרות">
-          ⚙︎
+          <Icon name="settings" />
         </button>
       </div>
 
@@ -133,76 +187,137 @@ export function Library({ onOpen, onOpenSettings, onOpenCatalog }: Props) {
         </p>
       )}
 
-      <section aria-labelledby="h-books">
-        <h2 id="h-books" class="visually-hidden">
-          הספרים שלי
-        </h2>
-        {books === null && !error && <p class="muted">טוען…</p>}
-        {books?.length === 0 && <p class="muted">עוד אין ספרים. אפשר לבחור הצעה, לחפש או להעלות קובץ.</p>}
-        {books && books.length > 1 && (
-          <div class="row sort-row">
-            <select
-              aria-label="מיון הספרים שלי"
-              value={mySort}
-              onChange={(e) => {
-                const v = e.currentTarget.value as MySort;
-                setMySort(v);
-                try {
-                  localStorage.setItem(SORT_KEY, v);
-                } catch {
-                  /* ignore */
-                }
-              }}
-            >
-              <option value="recent">מיון: נוסף לאחרונה</option>
-              <option value="title">מיון: שם (א-ב)</option>
-              <option value="level">מיון: רמה</option>
-            </select>
-          </div>
-        )}
-        <ul class="book-list">
-          {sorted?.map((b) => {
-            const pos = loadLocalPosition(b.id);
-            const ch = pos ? parseSentenceId(pos.sentenceId)?.c : undefined;
-            return (
-              <li key={b.id} class="book-card">
-                <button class="book-open" onClick={() => onOpen(b)}>
-                  <span class="book-title en" lang="en">
-                    {b.level && <span class="level inline">{b.level}</span>}
-                    {b.title}
-                  </span>
-                  <span class="book-author en" lang="en">
-                    {b.author}
-                  </span>
-                  <span class="book-meta">
-                    {b.chapterCount} פרקים · {Math.round(b.wordCount / 1000)} אלף מילים
-                    {ch !== undefined && ` · הגעת לפרק ${ch + 1}`}
-                    {readPercent(b.id) !== null && ` · ${readPercent(b.id)}% נקרא`}
-                  </span>
-                </button>
-                <button
-                  class="icon-btn"
-                  aria-label={`מחיקת ${b.title}`}
-                  onClick={async () => {
-                    if (!confirm(`למחוק את "${b.title}" מהספרייה?`)) return;
-                    await deleteBook(b.id).catch(() => {});
-                    refresh();
-                  }}
-                >
-                  🗑
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+      {books === null && !error && <p class="muted">טוען…</p>}
 
+      {current && (
+        <section class="continue" aria-label="ממשיכים לקרוא">
+          <button class="continue-card" onClick={() => onOpen(current)}>
+            <Cover book={current} size="lg" />
+            <span class="continue-body">
+              <span class="eyebrow">ממשיכים לקרוא</span>
+              <span class="continue-title en" lang="en">
+                {current.title}
+              </span>
+              {current.author && (
+                <span class="continue-author en" lang="en">
+                  {current.author}
+                </span>
+              )}
+              <span class="continue-progress">
+                <span class="pbar">
+                  <span style={{ width: `${readPercent(current.id) ?? 0}%` }} />
+                </span>
+                <span class="muted small">{readPercent(current.id) ?? 0}% · {chapterNote(current)}</span>
+              </span>
+              <span class="btn continue-cta">המשך קריאה</span>
+            </span>
+          </button>
+        </section>
+      )}
+
+      {current && (
+        <p class="current-actions">
+          {menuFor === current.id ? (
+            <span class="shelf-menu inline" role="group" aria-label={`מחיקת ${current.title}`}>
+              <span class="small">למחוק את "{current.title}"?</span>
+              <button class="danger" onClick={() => removeBook(current)}>
+                מחיקה
+              </button>
+              <button class="secondary" onClick={() => setMenuFor(null)}>
+                ביטול
+              </button>
+            </span>
+          ) : (
+            <button class="link-btn" onClick={() => setMenuFor(current.id)}>
+              <Icon name="trash" size={16} />
+              מחיקת הספר הנוכחי
+            </button>
+          )}
+        </p>
+      )}
+
+      {shelf && shelf.length > 0 && (
+        <section aria-labelledby="h-books">
+          <div class="row shelf-head">
+            <h2 id="h-books">{current ? 'עוד בספרייה' : 'הספרים שלי'}</h2>
+            <span class="spacer" />
+            {books && books.length > 2 && (
+              <select
+                class="sort-select"
+                aria-label="מיון הספרים שלי"
+                value={mySort}
+                onChange={(e) => {
+                  const v = e.currentTarget.value as MySort;
+                  setMySort(v);
+                  try {
+                    localStorage.setItem(SORT_KEY, v);
+                  } catch {
+                    /* ignore */
+                  }
+                }}
+              >
+                <option value="recent">נוסף לאחרונה</option>
+                <option value="title">שם (א-ב)</option>
+                <option value="level">רמה</option>
+              </select>
+            )}
+          </div>
+          <ul class="shelf">
+            {shelf.map((b) => {
+              const pct = readPercent(b.id);
+              return (
+                <li key={b.id} class="shelf-item">
+                  <button class="shelf-open" onClick={() => onOpen(b)}>
+                    <Cover book={b} />
+                    {b.level && <span class="level cover-level">{b.level}</span>}
+                    <span class="shelf-title en" lang="en">
+                      {b.title}
+                    </span>
+                    <span class="shelf-meta">{pct ? `${pct}% נקרא` : `${Math.max(1, Math.round(b.wordCount / 1000))} אלף מילים`}</span>
+                  </button>
+                  <button
+                    class="icon-btn shelf-more"
+                    aria-label={`אפשרויות עבור ${b.title}`}
+                    aria-expanded={menuFor === b.id}
+                    onClick={() => setMenuFor(menuFor === b.id ? null : b.id)}
+                  >
+                    <Icon name="more" size={18} />
+                  </button>
+                  {menuFor === b.id && (
+                    <div class="shelf-menu" role="group" aria-label={`מחיקת ${b.title}`}>
+                      <span class="small">למחוק מהספרייה?</span>
+                      <button class="danger" onClick={() => removeBook(b)}>
+                        מחיקה
+                      </button>
+                      <button class="secondary" onClick={() => setMenuFor(null)}>
+                        ביטול
+                      </button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {books?.length === 0 && (
+        <section class="empty">
+          <h2>הספרייה מחכה לספר הראשון</h2>
+          <p class="muted">אפשר לבחור ספר לפי רמה מהקטלוגים, לייבא מ-Gutenberg, או להעלות קובץ EPUB, PDF או TXT.</p>
+        </section>
+      )}
+
+      {showAdd && (
+        <>
       <div class="add-row">
         <button class="secondary" onClick={() => onOpenCatalog(have)}>
-          📚 קטלוגים: ספרים לפי רמה
+          <Icon name="books" size={18} />
+          קטלוגים: ספרים לפי רמה
         </button>
         <label class={`btn secondary ${uploading ? 'disabled' : ''}`}>
-          {uploading ?? 'העלאת קובץ מהמכשיר: EPUB, PDF או TXT'}
+          <Icon name="upload" size={18} />
+          {uploading ?? 'העלאת קובץ: EPUB, PDF או TXT'}
           <input
             type="file"
             accept={ACCEPT}
@@ -312,6 +427,8 @@ export function Library({ onOpen, onOpenSettings, onOpenCatalog }: Props) {
           <p class="muted small">המספר מופיע בכתובת הספר באתר: gutenberg.org/ebooks/1513</p>
         </details>
       </section>
+        </>
+      )}
     </main>
   );
 }

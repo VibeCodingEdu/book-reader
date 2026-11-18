@@ -6,6 +6,8 @@ export interface ImportedFile {
   title: string;
   author: string;
   parsed: ParsedBook;
+  /** כריכה מתוך הקובץ (כרגע רק EPUB) */
+  cover?: { bytes: Uint8Array; mime: string };
 }
 
 function titleFromFileName(name: string): string {
@@ -24,7 +26,7 @@ export async function importFile(file: File): Promise<ImportedFile> {
   if (ext === 'epub') {
     const { parseEpub } = await import('./epub');
     const raw = parseEpub(new Uint8Array(await file.arrayBuffer()));
-    return { title: raw.title || fallbackTitle, author: raw.author, parsed: chaptersFromRaw(raw.chapters) };
+    return { title: raw.title || fallbackTitle, author: raw.author, parsed: chaptersFromRaw(raw.chapters), cover: raw.cover };
   }
 
   if (ext === 'pdf') {

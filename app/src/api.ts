@@ -122,10 +122,22 @@ export const importBook = (gutenbergId: number, hint?: { title: string; author: 
     body: JSON.stringify({ gutenbergId, ...hint }),
   }).then((r) => r.book);
 
-export const uploadBook = (meta: BookMeta, chapters: Chapter[]) =>
-  request<{ book: BookMeta }>('/api/books/upload', { method: 'POST', body: JSON.stringify({ meta, chapters }) }).then(
+/** cover: data URL של JPEG מוקטן (מתוך EPUB), אופציונלי */
+export const uploadBook = (meta: BookMeta, chapters: Chapter[], cover?: string) =>
+  request<{ book: BookMeta }>('/api/books/upload', { method: 'POST', body: JSON.stringify({ meta, chapters, cover }) }).then(
     (r) => r.book,
   );
+
+/** כריכת ספר כתמונה. null = לספר אין כריכה (מציגים כריכה טיפוגרפית). שגיאת רשת – זורק. */
+export async function getCover(bookId: string): Promise<Blob | null> {
+  const token = loadSession()?.token;
+  const res = await fetch(`${WORKER_URL}/api/books/${encodeURIComponent(bookId)}/cover`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new ApiError(res.status, `שגיאת שרת (${res.status})`);
+  return res.blob();
+}
 
 /** קובץ ספר מאתר קטלוג, דרך השרת (בלחיצת המשתמש) */
 export async function fetchExternal(url: string): Promise<ArrayBuffer> {

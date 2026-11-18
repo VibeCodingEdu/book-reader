@@ -7,6 +7,8 @@ export interface RawBook {
   title: string;
   author: string;
   chapters: { title: string; paras: string[] }[];
+  /** תמונת הכריכה מתוך הקובץ, אם יש */
+  cover?: { bytes: Uint8Array; mime: string };
 }
 
 function dirOf(path: string): string {
@@ -133,5 +135,21 @@ export function parseEpub(buf: Uint8Array): RawBook {
     chapters.push({ title: toc.get(path) || heading, paras });
   }
   if (!chapters.length) throw new Error('לא נמצא טקסט בקובץ');
-  return { title, author, chapters };
+  return { title, author, chapters, cover: findCover(files, opfPath, opf) };
+}
+
+/**
+ * כריכה: EPUB3 מסמן אותה ב-properties="cover-image"; EPUB2 ב-<meta name="cover" content="id">;
+ * ובקבצים ישנים לפעמים רק השם מרמז ("cover.jpg").
+ */
+export function findCover(files: Record<string, Uint8Array>, opfPath: string, opf: Document): RawBook['cover'] {
+  const items = byLocal(opf, 'item').filter((i) => /^image\/(jpeg|png|webp|gif)$/.test(i.getAttribute('media-type') ?? ''));
+  const metaId = byLocal(opf, 'meta').find((m) => m.getAttribute('name') === 'cover')?.getAttribute('content');
+  const item =
+    items.find((i) => (i.getAttribute('properties') ?? '').split(' ').includes('cover-image')) ??
+    (metaId ? items.find((i) => i.getAttribute('id') === metaId) : undefined) ??
+    items.find((i) => /cover/i.test(`${i.getAttribute('id')} ${i.getAttribute('href')}`));
+  if (!item) return undefined;
+  const bytes = files[resolvePath(opfPath, item.getAttribute('href')!)];
+  return bytes?.length ? { bytes, mime: item.getAttribute('media-type')! } : undefined;
 }

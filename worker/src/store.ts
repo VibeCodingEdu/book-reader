@@ -32,6 +32,7 @@ export async function deleteBook(db: D1Database, id: string): Promise<void> {
     db.prepare('DELETE FROM chapters WHERE book_id = ?').bind(id),
     db.prepare('DELETE FROM books WHERE id = ?').bind(id),
     db.prepare('DELETE FROM positions WHERE book_id = ?').bind(id),
+    db.prepare('DELETE FROM covers WHERE book_id = ?').bind(id),
   ]);
 }
 
@@ -243,4 +244,34 @@ export async function ensureChapterWords(db: D1Database, meta: BookMeta): Promis
   const updated = { ...meta, chapterWords: words };
   await db.prepare('UPDATE books SET meta = ? WHERE id = ?').bind(JSON.stringify(updated), meta.id).run();
   return updated;
+}
+
+// ---------- כריכות ----------
+export interface CoverRow {
+  mime: string | null;
+  data: Uint8Array | null;
+  missing: boolean;
+  checkedAt: number;
+}
+
+export async function getCover(db: D1Database, bookId: string): Promise<CoverRow | null> {
+  const row = await db
+    .prepare('SELECT mime, data, missing, checked_at FROM covers WHERE book_id = ?')
+    .bind(bookId)
+    .first<{ mime: string | null; data: ArrayBuffer | number[] | null; missing: number; checked_at: number }>();
+  if (!row) return null;
+  return {
+    mime: row.mime,
+    // D1 מחזיר BLOB כ-ArrayBuffer או כמערך מספרים, לפי הגרסה
+    data: row.data ? new Uint8Array(row.data as ArrayBuffer) : null,
+    missing: row.missing === 1,
+    checkedAt: row.checked_at,
+  };
+}
+
+export async function putCover(db: D1Database, bookId: string, cover: { mime: string; bytes: Uint8Array } | null): Promise<void> {
+  await db
+    .prepare('INSERT OR REPLACE INTO covers (book_id, mime, data, missing, checked_at) VALUES (?, ?, ?, ?, ?)')
+    .bind(bookId, cover?.mime ?? null, cover ? cover.bytes : null, cover ? 0 : 1, Date.now())
+    .run();
 }

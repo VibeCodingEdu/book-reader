@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { BookMeta } from '../../shared/book';
+import { Icon } from './Icon';
 import { FILTER_LEVELS, levelMatches, levelRank } from './levels';
 import { ACCEPT, audioUrlFor, directFileUrl, importFromCatalog, uploadFile, type CatalogLink } from './upload';
 
@@ -118,7 +119,7 @@ export function Catalog(props: { have: Set<string>; onBack: () => void; onUpload
     <main class="page">
       <div class="row top-row">
         <button class="icon-btn" onClick={props.onBack} aria-label="חזרה לספרייה">
-          →
+          <Icon name="back" />
         </button>
         <h1>קטלוגים</h1>
       </div>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'preact/hooks';
 import { WordSheet } from '../WordSheet';
+import { Icon } from '../Icon';
 import { ChapterText } from './SentenceText';
 import type { ViewProps } from './viewProps';
 import { usePagination } from './usePagination';
@@ -136,19 +137,19 @@ export function ReadingView({ book, settings, ch, clearRef, ann, onEditNote, per
 
       <footer class="reader-foot" dir="ltr">
         <button class="nav-btn" onClick={prev} aria-label="עמוד קודם">
-          ‹
+          <Icon name="chevronLeft" size={24} />
         </button>
-        <div class="progress" dir="rtl">
-          <span class="progress-chapter" dir="auto">
-            {chapterTitle}
-          </span>
-          <span>
-            עמוד {pg.page + 1} מתוך {pg.pageCount} · פרק {(chapterIdx ?? 0) + 1}/{book.chapterCount}
+        <div class="progress" dir="rtl" title={chapterTitle}>
+          <div class="pbar" role="progressbar" aria-label="התקדמות בספר" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent ?? 0}>
+            <span style={{ width: `${percent ?? 0}%` }} />
+          </div>
+          <span class="progress-text">
+            עמוד {pg.page + 1} מתוך {pg.pageCount}
             {percent !== null && ` · ${percent}%`}
           </span>
         </div>
         <button class="nav-btn" onClick={next} aria-label="עמוד הבא">
-          ›
+          <Icon name="chevronRight" size={24} />
         </button>
       </footer>
 

@@ -44,7 +44,23 @@ export async function uploadFile(file: File, from?: CatalogLink, onStage?: (s: s
     imp.parsed.chapters,
   );
   onStage?.('שומר בספרייה…');
-  return uploadBook(meta, imp.parsed.chapters);
+  const cover = imp.cover ? await shrinkCover(imp.cover).catch(() => undefined) : undefined;
+  return uploadBook(meta, imp.parsed.chapters, cover);
+}
+
+/** מקטין את הכריכה ל-JPEG ברוחב 400px לכל היותר (כמה עשרות KB) */
+async function shrinkCover(cover: { bytes: Uint8Array; mime: string }): Promise<string | undefined> {
+  const bmp = await createImageBitmap(new Blob([cover.bytes as BlobPart], { type: cover.mime }));
+  const scale = Math.min(1, 400 / bmp.width);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bmp.width * scale);
+  canvas.height = Math.round(bmp.height * scale);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return undefined;
+  ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  bmp.close?.();
+  const url = canvas.toDataURL('image/jpeg', 0.82);
+  return url.startsWith('data:image/jpeg') ? url : undefined;
 }
 
 export const ACCEPT = '.epub,.pdf,.txt,application/epub+zip,application/pdf,text/plain';

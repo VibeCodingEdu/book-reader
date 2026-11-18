@@ -1,5 +1,6 @@
 import type { TextTranslation, UnitType, WordLookup } from '../../shared/translate';
 import { ENGINE_LABELS } from '../../shared/translate';
+import { Icon } from './Icon';
 import { toggleSpeak, useSpeakingKey } from './speech';
 import type { SentenceTr } from './reader/useSentenceTranslations';
 
@@ -68,10 +69,10 @@ export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSe
           aria-label={speaking === `sheet:${toSpeak}` ? 'עצירת ההשמעה' : 'השמעה באנגלית'}
           onClick={() => toggleSpeak(toSpeak, `sheet:${toSpeak}`)}
         >
-          {speaking === `sheet:${toSpeak}` ? '⏹' : '🔊'}
+          <Icon name={speaking === `sheet:${toSpeak}` ? 'stop' : 'speak'} />
         </button>
         <button class="icon-btn" aria-label="סגירה" onClick={onClose}>
-          ✕
+          <Icon name="close" />
         </button>
       </div>
 
@@ -101,6 +102,7 @@ export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSe
         <div class="sheet-sentence">
           {!sentenceTr && (
             <button class="secondary sentence-btn" onClick={onTranslateSentence}>
+              <Icon name="translate" size={18} />
               תרגום כל המשפט
             </button>
           )}
@@ -118,10 +120,12 @@ export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSe
       {sel.kind === 'word' && onToggleBookmark && onEditNote && (
         <div class="row sheet-ann">
           <button class="secondary" aria-pressed={!!sentenceMarks?.bookmarked} onClick={onToggleBookmark}>
-            🔖 {sentenceMarks?.bookmarked ? 'הסרת הסימנייה' : 'סימנייה למשפט'}
+            <Icon name="bookmark" size={18} />
+            {sentenceMarks?.bookmarked ? 'הסרת הסימנייה' : 'סימנייה למשפט'}
           </button>
           <button class="secondary" aria-pressed={!!sentenceMarks?.hasNote} onClick={onEditNote}>
-            ✏️ {sentenceMarks?.hasNote ? 'עריכת ההערה' : 'הערה למשפט'}
+            <Icon name="note" size={18} />
+            {sentenceMarks?.hasNote ? 'עריכת ההערה' : 'הערה למשפט'}
           </button>
         </div>
       )}

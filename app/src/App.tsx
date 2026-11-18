@@ -32,9 +32,20 @@ export function App() {
 
   useEffect(() => setUnauthorizedHandler(() => setSession(null)), []);
 
-  // ערכת הצבע חלה על כל הדף
+  // ערכת הצבע חלה על כל הדף. "אוטו" = יום/לילה לפי המכשיר, ומתעדכן כשהמכשיר מתחלף.
   useEffect(() => {
-    document.documentElement.dataset.theme = settings.theme;
+    const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
+    const apply = () => {
+      const t = settings.theme === 'auto' ? (mq?.matches ? 'dark' : 'light') : settings.theme;
+      document.documentElement.dataset.theme = t;
+      // שורת המצב באייפון/אנדרואיד בצבע הרקע של הערכה
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg || '#ffffff');
+    };
+    apply();
+    if (settings.theme !== 'auto' || !mq) return;
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
   }, [settings.theme]);
 
   // סנכרון הגדרות: בהתחברות – לוקחים מהשרת אם שם חדש יותר

@@ -21,6 +21,7 @@ import { fetchExternal } from './external';
 import { passphraseMatches, signToken, verifyToken, type TokenPayload } from './auth';
 import { importGutenberg, searchGutenberg } from './gutenberg';
 import * as store from './store';
+import { coverSourceFor, decodeCoverDataUrl, downloadCover, RETRY_MISSING_MS } from './covers';
 import { EngineUnavailable, getEngine, getSentenceEngine, pickEngineId, pickSentenceEngineId } from './translate/engines';
 
 export interface Env {
@@ -119,13 +120,35 @@ app.post('/api/books/import', async (c) => {
 
 // ספר שפוענח בדפדפן (EPUB / PDF / TXT) – נשמר כמו ספר Gutenberg
 app.post('/api/books/upload', async (c) => {
-  const body = await c.req.json<{ meta?: BookMeta; chapters?: Chapter[] }>();
+  const body = await c.req.json<{ meta?: BookMeta; chapters?: Chapter[]; cover?: string }>();
   const err = validateUpload(body.meta, body.chapters);
   if (err) return c.json({ error: err }, 400);
   const chapters = body.chapters!;
   const clean = normalizeMeta(body.meta!, chapters);
   await store.saveBook(c.env.DB, clean, chapters);
+  // כריכה שחולצה מקובץ EPUB (אופציונלי; כריכה לא תקינה פשוט לא נשמרת)
+  const cover = decodeCoverDataUrl(body.cover);
+  if (cover) await store.putCover(c.env.DB, clean.id, cover);
   return c.json({ book: clean });
+});
+
+// כריכת ספר: מהמסד, ואם עוד אין – מורידים מהמקור (Gutenberg / english-e-reader) ושומרים.
+app.get('/api/books/:id/cover', async (c) => {
+  const id = c.req.param('id');
+  let row = await store.getCover(c.env.DB, id);
+  const stale = row?.missing && Date.now() - row.checkedAt > RETRY_MISSING_MS;
+  if (!row || stale) {
+    const book = await store.getBook(c.env.DB, id);
+    if (!book) return c.json({ error: 'הספר לא נמצא' }, 404);
+    const source = coverSourceFor(book);
+    // ספר בלי מקור כריכה (PDF/TXT) – לא שומרים כלום, האפליקציה מציגה כריכה טיפוגרפית
+    if (!source) return c.json({ error: 'אין כריכה' }, 404);
+    const cover = await downloadCover(source);
+    await store.putCover(c.env.DB, id, cover);
+    row = await store.getCover(c.env.DB, id);
+  }
+  if (!row?.data || !row.mime) return c.json({ error: 'אין כריכה' }, 404);
+  return new Response(row.data, { headers: { 'Content-Type': row.mime, 'Cache-Control': 'private, max-age=604800' } });
 });
 
 // הורדת קובץ ספר מאתר קטלוג (בלחיצת המשתמש) – מועבר כמו שהוא לאפליקציה, שמפענחת אותו

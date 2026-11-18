@@ -1,7 +1,8 @@
 // הגדרות תצוגה שנשמרות לכל מכשיר בנפרד (גופן לטלפון לא בהכרח מתאים ל-Boox),
 // ומסונכרנות לשרת תחת שם המכשיר.
 
-export type Theme = 'light' | 'dark' | 'sepia' | 'eink';
+/** auto = יום/לילה לפי הגדרת המכשיר */
+export type Theme = 'auto' | 'light' | 'dark' | 'sepia' | 'eink';
 
 export interface DeviceSettings {
   theme: Theme;
@@ -36,7 +37,7 @@ export const DEFAULT_SETTINGS: DeviceSettings = {
 };
 
 const KEY = 'reader.deviceSettings.v1';
-const THEMES: Theme[] = ['light', 'dark', 'sepia', 'eink'];
+const THEMES: Theme[] = ['auto', 'light', 'dark', 'sepia', 'eink'];
 
 const num = (v: unknown, min: number, max: number, def: number) =>
   typeof v === 'number' && v >= min && v <= max ? v : def;

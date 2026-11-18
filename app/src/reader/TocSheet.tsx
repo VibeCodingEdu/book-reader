@@ -1,6 +1,7 @@
 // תוכן עניינים: פרקים (עם התקדמות), סימניות והערות. לחיצה קופצת לפרק או למשפט.
 
 import { useState } from 'preact/hooks';
+import { Icon } from '../Icon';
 import { locateSentence, type Annotation } from '../../../shared/annotations';
 import { parseSentenceId, type BookMeta } from '../../../shared/book';
 
@@ -49,7 +50,7 @@ export function TocSheet(props: Props) {
           <h2>תוכן עניינים</h2>
           <span class="spacer" />
           <button class="icon-btn" aria-label="סגירה" onClick={props.onClose}>
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         <div class="segmented three" role="tablist">
@@ -57,10 +58,16 @@ export function TocSheet(props: Props) {
             פרקים
           </button>
           <button role="tab" aria-pressed={tab === 'bookmarks'} onClick={() => setTab('bookmarks')}>
-            🔖 {bookmarks.length}
+            <span class="tab-ico">
+              <Icon name="bookmark" size={18} />
+              {bookmarks.length}
+            </span>
           </button>
           <button role="tab" aria-pressed={tab === 'notes'} onClick={() => setTab('notes')}>
-            ✏️ {notes.length}
+            <span class="tab-ico">
+              <Icon name="note" size={18} />
+              {notes.length}
+            </span>
           </button>
         </div>
 
@@ -92,7 +99,9 @@ export function TocSheet(props: Props) {
           <ul class="toc-list">
             {(tab === 'bookmarks' ? bookmarks : notes).length === 0 && (
               <li class="muted toc-empty">
-                {tab === 'bookmarks' ? 'אין סימניות. 🔖 ליד משפט מוסיף סימנייה.' : 'אין הערות. ✏️ ליד משפט מוסיף הערה.'}
+                {tab === 'bookmarks'
+                  ? 'עוד אין סימניות. במצב לימוד, או בבועה של מילה, אפשר לסמן משפט.'
+                  : 'עוד אין הערות. במצב לימוד, או בבועה של מילה, אפשר לכתוב הערה למשפט.'}
               </li>
             )}
             {(tab === 'bookmarks' ? bookmarks : notes).map((a) => {
@@ -114,11 +123,11 @@ export function TocSheet(props: Props) {
                   <div class="toc-ann-actions">
                     {a.kind === 'note' && (
                       <button class="icon-btn" aria-label="עריכת ההערה" onClick={() => props.onEditNote(a)}>
-                        ✏️
+                        <Icon name="note" />
                       </button>
                     )}
                     <button class="icon-btn" aria-label={a.kind === 'note' ? 'מחיקת ההערה' : 'הסרת הסימנייה'} onClick={() => props.onRemove(a)}>
-                      🗑
+                      <Icon name="trash" />
                     </button>
                   </div>
                 </li>

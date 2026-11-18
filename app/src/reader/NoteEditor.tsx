@@ -1,6 +1,7 @@
 // עורך הערה על משפט: המשפט למעלה, תיבת טקסט, שמירה / מחיקה / ביטול.
 
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { Icon } from '../Icon';
 
 interface Props {
   sentence: string;
@@ -21,7 +22,7 @@ export function NoteEditor({ sentence, initial, onSave, onClose }: Props) {
           <h2>{initial ? 'עריכת הערה' : 'הערה חדשה'}</h2>
           <span class="spacer" />
           <button class="icon-btn" aria-label="סגירה" onClick={onClose}>
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         <p class="note-sentence en" lang="en" dir="ltr">

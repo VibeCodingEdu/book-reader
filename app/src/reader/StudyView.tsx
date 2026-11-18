@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/ho
 import { sentenceId } from '../../../shared/book';
 import { stopSpeaking, toggleSpeak, useSpeakingKey } from '../speech';
 import { WordSheet } from '../WordSheet';
+import { Icon } from '../Icon';
 import { SentenceSpan } from './SentenceText';
 import { screenStep, topVisibleId, type RowBox } from './studyAnchor';
 import type { ParallelMode } from '../deviceSettings';
@@ -32,9 +33,12 @@ export function StudyView({ book, settings, ch, clearRef, onPatchSettings, ann, 
   // 🌐 – משפטים שפתחת ידנית; "מוסתר" – משפטים שחשפת בנגיעה. מתאפסים בכל פרק.
   const [opened, setOpened] = useState<Set<string>>(new Set());
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  // המשפט הפעיל – רק לידו מוצגים הכפתורים (שאר השורות נקיות, הטקסט ברוחב מלא)
+  const [active, setActive] = useState<string | null>(null);
   useEffect(() => {
     setOpened(new Set());
     setRevealed(new Set());
+    setActive(null);
   }, [chapterIdx]);
   // תרגום מקביל פעיל – מביאים את כל הפרק (פעם אחת לפרק)
   useEffect(() => {
@@ -162,7 +166,11 @@ export function StudyView({ book, settings, ch, clearRef, onPatchSettings, ann, 
   };
 
   const onClick = (e: MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.study-actions, .study-tr, .study-tr-hidden')) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('.study-actions, .study-tr, .study-tr-hidden')) return;
+    // נגיעה בשורה (גם במילה) הופכת אותה לפעילה
+    const row = target.closest<HTMLElement>('[data-row]');
+    if (row) setActive(row.dataset.row!);
     if (selection.handleClick(e)) return;
     if (selection.sel) selection.clear();
   };
@@ -192,57 +200,55 @@ export function StudyView({ book, settings, ch, clearRef, onPatchSettings, ann, 
           <>
             {hasPrev && (
               <button class="secondary chapter-nav" onClick={() => ch.prevChapterAtEnd()}>
-                ‹ לפרק הקודם
+                <Icon name="chevronUp" size={18} />
+                לפרק הקודם
               </button>
             )}
             <h2 class="chapter-title en" dir="auto">
               {chapter.title}
             </h2>
+            {active === null && <p class="study-hint">נגיעה במשפט מציגה את הכלים שלו: תרגום, השמעה, סימנייה והערה.</p>}
             {chapter.paragraphs.map((para, pi) => (
               <div class="study-para" key={pi}>
                 {para.map((text, si) => {
                   const sid = sentenceId(chapterIdx, pi, si);
                   return (
-                    <div class="study-row" data-row={sid} key={si}>
+                    <div class={`study-row ${active === sid ? 'active' : ''}`} data-row={sid} key={si}>
                       <div class="study-line" dir="ltr">
                         <div class="study-text en" lang={book.lang}>
                           <SentenceSpan sid={sid} text={text} />
                         </div>
-                        <div class="study-actions">
-                          <button
-                            class="icon-btn"
-                            aria-label="תרגום המשפט"
-                            aria-pressed={opened.has(sid)}
-                            onClick={() => toggleOpen(sid)}
-                          >
-                            🌐
+                        {active !== sid && (marks.get(sid)?.bookmark || marks.get(sid)?.note || opened.has(sid)) && (
+                          <span class="row-marks" aria-hidden="true">
+                            {marks.get(sid)?.bookmark && <Icon name="bookmark" size={14} />}
+                            {marks.get(sid)?.note && <Icon name="note" size={14} />}
+                          </span>
+                        )}
+                      </div>
+                      {active === sid && (
+                        <div class="study-actions" dir="rtl">
+                          <button class="act" aria-pressed={opened.has(sid)} onClick={() => toggleOpen(sid)}>
+                            <Icon name="translate" size={18} />
+                            תרגום
+                          </button>
+                          <button class="act" aria-pressed={speaking === sid} onClick={() => toggleSpeak(text, sid)}>
+                            <Icon name={speaking === sid ? 'stop' : 'speak'} size={18} />
+                            {speaking === sid ? 'עצירה' : 'השמעה'}
                           </button>
                           <button
-                            class="icon-btn"
-                            aria-label={speaking === sid ? 'עצירת ההשמעה' : 'השמעת המשפט'}
-                            aria-pressed={speaking === sid}
-                            onClick={() => toggleSpeak(text, sid)}
-                          >
-                            {speaking === sid ? '⏹' : '🔊'}
-                          </button>
-                          <button
-                            class="icon-btn"
-                            aria-label={marks.get(sid)?.bookmark ? 'הסרת הסימנייה' : 'סימנייה'}
+                            class="act"
                             aria-pressed={!!marks.get(sid)?.bookmark}
                             onClick={() => ann.toggleBookmark(sid, text, marks.get(sid)?.bookmark)}
                           >
-                            🔖
+                            <Icon name="bookmark" size={18} />
+                            {marks.get(sid)?.bookmark ? 'מסומן' : 'סימנייה'}
                           </button>
-                          <button
-                            class="icon-btn"
-                            aria-label={marks.get(sid)?.note ? 'הערה (יש)' : 'הוספת הערה'}
-                            aria-pressed={!!marks.get(sid)?.note}
-                            onClick={() => onEditNote(sid, text, marks.get(sid)?.note)}
-                          >
-                            ✏️
+                          <button class="act" aria-pressed={!!marks.get(sid)?.note} onClick={() => onEditNote(sid, text, marks.get(sid)?.note)}>
+                            <Icon name="note" size={18} />
+                            הערה
                           </button>
                         </div>
-                      </div>
+                      )}
                       <TranslationLine
                         tr={tr.get(sid)}
                         visible={parallel === 'show' || opened.has(sid) || (parallel === 'hide' && revealed.has(sid))}
@@ -259,7 +265,8 @@ export function StudyView({ book, settings, ch, clearRef, onPatchSettings, ann, 
             ))}
             {hasNext && (
               <button class="chapter-nav" onClick={() => ch.nextChapter()}>
-                לפרק הבא ›
+                לפרק הבא
+                <Icon name="chevronDown" size={18} />
               </button>
             )}
           </>
@@ -268,23 +275,25 @@ export function StudyView({ book, settings, ch, clearRef, onPatchSettings, ann, 
 
       <footer class="reader-foot study-foot">
         <button class="nav-btn" onClick={() => scrollScreen(-1)} aria-label="מסך למעלה">
-          ▲
+          <Icon name="chevronUp" size={24} />
         </button>
-        <div class="progress">
-          <span class="progress-chapter" dir="auto">
-            {chapterTitle}
-            {percent !== null && ` · ${percent}%`}
-          </span>
+        <div class="progress" title={chapterTitle}>
+          <div class="pbar" role="progressbar" aria-label="התקדמות בספר" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent ?? 0}>
+            <span style={{ width: `${percent ?? 0}%` }} />
+          </div>
           <button
             class="parallel-btn"
+            aria-pressed={parallel !== 'off'}
             aria-label={`תרגום מקביל: ${PARALLEL_LABEL[parallel]}`}
             onClick={() => onPatchSettings({ parallel: PARALLEL_NEXT[parallel] })}
           >
-            🌐 תרגום מקביל: {PARALLEL_LABEL[parallel]}
+            <Icon name="translate" size={16} />
+            תרגום מקביל: {PARALLEL_LABEL[parallel]}
+            {percent !== null && <span class="muted"> · {percent}%</span>}
           </button>
         </div>
         <button class="nav-btn" onClick={() => scrollScreen(1)} aria-label="מסך למטה">
-          ▼
+          <Icon name="chevronDown" size={24} />
         </button>
       </footer>
 
@@ -327,6 +336,7 @@ function TranslationLine(props: {
   if (hidden) {
     return (
       <button class="study-tr-hidden" onClick={props.onReveal}>
+        <Icon name="eye" size={14} />
         הצג תרגום
       </button>
     );
