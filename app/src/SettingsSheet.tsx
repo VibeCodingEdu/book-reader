@@ -61,6 +61,12 @@ function Stepper(props: { label: string; value: string; onDec: () => void; onInc
   );
 }
 
+/** "הגדרות לאייפון", ובשם לועזי (Boox) עם מקף: "הגדרות ל-Boox" */
+export function settingsTitle(device: string): string {
+  const name = device.trim() || 'מכשיר';
+  return /^[A-Za-z0-9]/.test(name) ? `הגדרות ל-${name}` : `הגדרות ל${name}`;
+}
+
 export function SettingsSheet({ settings: s, session, onChange, onClose, onLogout }: Props) {
   const { sheetRef, handleProps } = useSheetDrag(onClose);
   const [spend, setSpend] = useState<Spend | null>(null);
@@ -78,7 +84,7 @@ export function SettingsSheet({ settings: s, session, onChange, onClose, onLogou
       <div ref={sheetRef} class="sheet settings" role="dialog" aria-label="הגדרות" onClick={(e) => e.stopPropagation()}>
         <div class="sheet-grabber" aria-hidden="true" {...handleProps} />
         <div class="sheet-head" {...handleProps}>
-          <h2>הגדרות ל{session.device}</h2>
+          <h2>{settingsTitle(session.device)}</h2>
           <span class="spacer" />
           <button class="icon-btn" aria-label="סגירה" onClick={onClose}>
             <Icon name="close" />
