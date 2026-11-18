@@ -22,6 +22,8 @@ import '@fontsource/frank-ruhl-libre/hebrew-500.css';
 import '@fontsource/frank-ruhl-libre/latin-500.css';
 import '@fontsource/frank-ruhl-libre/hebrew-700.css';
 import '@fontsource/frank-ruhl-libre/latin-700.css';
+import '@fontsource/montserrat/latin-500.css';
+import '@fontsource/montserrat/latin-700.css';
 import './styles.css';
 
 render(<App />, document.getElementById('app')!);

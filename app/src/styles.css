@@ -1,23 +1,25 @@
 /* ערכות צבע – מוגדרות כטוקנים, ומוחלפות לפי data-theme על <html>.
-   כיוון העיצוב: "שילוב" – מבנה נקי ומינימלי, וחום של נייר בצבעים ובטיפוגרפיה.
-   צבע ההדגשה (חלודה/ענבר) שמור לפעולה הראשית, לבחירה ולסימון – לא לקישוט. */
+   פלטת LingoRead: כחול-דיו (כמו בלוגו) על נייר חם; כתום-זעפרן רק להדגשה (סימנייה, התקדמות, סימון).
+   --accent = פעולה ראשית ובחירה (כחול). --hl = הדגשה גרפית (זעפרן); --hl-text = זעפרן כהה מספיק לטקסט. */
 :root {
-  --bg: #fbfaf7;          /* רקע הדף – לבן חם */
-  --fg: #1d1b18;
-  --muted: #6b655d;
-  --line: #e6e0d6;        /* קווים דקים */
-  --card: #f3efe7;        /* משטח משני: כרטיסים, גיליונות, מסלול של מתג */
-  --raised: #ffffff;      /* משטח מוגבה: הכפתור הנבחר במתג, כרטיס בולט */
-  --accent: #9a4a22;      /* חלודה */
+  --bg: #faf8f3;          /* נייר חם */
+  --fg: #14213d;          /* כחול-דיו */
+  --muted: #5a6274;
+  --line: #e3ddd1;
+  --card: #f1ede4;
+  --raised: #ffffff;
+  --accent: #14213d;
   --accent-fg: #ffffff;
-  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --hl: #e08a1e;
+  --hl-text: #a35a0b;
   --ghost-hover: color-mix(in srgb, var(--fg) 6%, transparent);
   --ok: #2f6b3a;
   --bad: #a3321f;
   --radius: 14px;
   --radius-sm: 10px;
-  --shadow: 0 1px 2px rgba(60, 40, 20, 0.06), 0 2px 8px rgba(60, 40, 20, 0.05);
-  --shadow-sheet: 0 -8px 32px rgba(40, 25, 10, 0.14);
+  --shadow: 0 1px 2px rgba(20, 33, 61, 0.06), 0 2px 8px rgba(20, 33, 61, 0.05);
+  --shadow-sheet: 0 -8px 32px rgba(20, 33, 61, 0.14);
   --tap: 48px;
   --border-w: 1px;
   --transition: 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -25,19 +27,22 @@
   --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Noto Serif', 'Times New Roman', serif;
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   --font-display: 'Frank Ruhl Libre', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Noto Serif Hebrew', 'Noto Serif', serif;
+  --font-brand: 'Montserrat', 'Heebo', system-ui, sans-serif;
   color-scheme: light;
 }
 
-/* לילה: כהה חם (לא שחור "טכני"), טקסט בגוון שמנת */
+/* לילה: כחול-לילה עמוק, טקסט שמנת, זעפרן בהיר */
 :root[data-theme='dark'] {
-  --bg: #16130f;
-  --fg: #ebe3d5;
-  --muted: #a1978a;
-  --line: #2e2922;
-  --card: #201c17;
-  --raised: #2b261f;
-  --accent: #e39a68;
-  --accent-fg: #1f1007;
+  --bg: #0f1522;
+  --fg: #ece6da;
+  --muted: #9ba3b4;
+  --line: #263045;
+  --card: #161e2d;
+  --raised: #1d2638;
+  --accent: #ece6da;
+  --accent-fg: #0f1522;
+  --hl: #f0a24a;
+  --hl-text: #f0a24a;
   --ok: #8fcf9b;
   --bad: #f19a88;
   --shadow: none;
@@ -45,16 +50,18 @@
   color-scheme: dark;
 }
 
-/* ספיה: נייר חם מלא */
+/* ספיה: נייר חם מלא, דיו כחול */
 :root[data-theme='sepia'] {
   --bg: #f3ebdd;
-  --fg: #3a2e22;
-  --muted: #76624d;
+  --fg: #1f2a44;
+  --muted: #6b6250;
   --line: #ddcdb3;
   --card: #ebe0cc;
   --raised: #faf4e8;
-  --accent: #94441d;
+  --accent: #1f2a44;
   --accent-fg: #fff8ec;
+  --hl: #c9761a;
+  --hl-text: #94520a;
   --ok: #3f6a2e;
   --bad: #9c2f1c;
 }
@@ -70,6 +77,8 @@
   --accent: #000000;
   --accent-fg: #ffffff;
   --accent-soft: transparent;
+  --hl: #000000;
+  --hl-text: #000000;
   --ghost-hover: transparent;
   --ok: #000000;
   --bad: #000000;
@@ -214,7 +223,7 @@ table.diag td.ua { direction: ltr; text-align: left; font-size: 0.8rem; }
 .muted { color: var(--muted); }
 .small { font-size: 0.85rem; }
 .top-row h1 { margin: 0; }
-.top-row { margin: 8px 0 20px; }
+.top-row { margin: 8px 0 20px; flex-wrap: nowrap; }
 
 /* כפתור סמל: שקוף, מקבל רקע עדין במגע/ריחוף */
 .icon-btn {
@@ -274,7 +283,7 @@ select { min-height: var(--tap); padding: 6px 12px; }
 .pages.sans { font-family: var(--font-sans); }
 .chapter-title { font-family: var(--font-display); font-size: 1.35em; font-weight: 700; margin: 0.8em 0 1em; text-align: center; break-after: avoid; }
 .w { cursor: pointer; border-radius: 3px; }
-.w.hl { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.w.hl { background: color-mix(in srgb, var(--hl) 28%, transparent); }
 :root[data-theme='eink'] .w.hl { background: none; outline: 2px solid #000; outline-offset: 1px; }
 .reader-msg { padding: 32px 16px; text-align: center; color: var(--muted); }
 .nav-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0 14px; background: transparent; color: var(--fg); border-color: transparent; border-radius: 999px; }
@@ -480,7 +489,7 @@ label.btn { margin: 0; }
 /* שורת הסטטוס בתחתית: פס התקדמות דק וטקסט קצר */
 .progress { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--muted); }
 .pbar { width: min(100%, 220px); height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
-.pbar > span { display: block; height: 100%; background: var(--fg); border-radius: 2px; opacity: 0.75; }
+.pbar > span { display: block; height: 100%; background: var(--hl); border-radius: 2px; }
 .progress-text { font-variant-numeric: tabular-nums; }
 :root[data-theme='eink'] .pbar { height: 6px; background: #fff; border: 2px solid #000; border-radius: 0; }
 :root[data-theme='eink'] .pbar > span { background: #000; opacity: 1; border-radius: 0; }
@@ -504,7 +513,7 @@ label.btn { margin: 0; }
 .study-row.active { background: var(--card); }
 :root[data-theme='eink'] .study-row.active { background: #fff; outline: 2px solid #000; }
 .study-line { display: flex; align-items: flex-start; gap: 6px; }
-.row-marks { flex: none; display: inline-flex; gap: 2px; margin-top: 0.3em; color: var(--accent); }
+.row-marks { flex: none; display: inline-flex; gap: 2px; margin-top: 0.3em; color: var(--hl); }
 .study-actions { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 2px; font-size: 1rem; line-height: 1.2; font-family: var(--font-ui); }
 .study-actions .act {
   display: inline-flex; align-items: center; gap: 5px; min-height: 38px; min-width: 0; padding: 6px 9px;
@@ -531,7 +540,7 @@ label.btn { margin: 0; }
 
 /* כפתורים עם סמל + טקסט */
 .sheet-ann button, .sentence-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-.sheet-ann button { flex: 1; font-size: 0.9rem; }
+.sheet-ann button { flex: 1; font-size: 0.86rem; white-space: nowrap; padding-inline: 10px; }
 .sheet-ann button[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
 :root[data-theme='eink'] .sheet-ann button[aria-pressed='true'] { background: #000; color: #fff; }
 .tab-ico { display: inline-flex; align-items: center; gap: 6px; }
@@ -540,7 +549,7 @@ label.btn { margin: 0; }
 .pages [data-sid].has-bm, .pages [data-sid].has-note { position: relative; }
 .pages [data-sid].has-bm::before, .pages [data-sid].has-note::before {
   content: ''; position: absolute; left: -0.55em; top: -0.85em; width: 0.62em; height: 0.62em; pointer-events: none;
-  background: var(--accent);
+  background: var(--hl);
   -webkit-mask: var(--mark-icon) center / contain no-repeat; mask: var(--mark-icon) center / contain no-repeat;
 }
 .pages [data-sid].has-bm { --mark-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 3h12v18l-6-4.2L6 21z'/%3E%3C/svg%3E"); }
@@ -592,10 +601,10 @@ label.btn { margin: 0; }
   width: 100%; display: flex; gap: 18px; align-items: stretch; text-align: start; padding: 16px;
   background: var(--card); color: var(--fg); border: var(--border-w) solid transparent; border-radius: 18px; font-weight: 400;
 }
-.continue-card:hover:not(:disabled) { background: color-mix(in srgb, var(--card) 85%, var(--fg) 4%); }
+.continue-card:hover:not(:disabled) { background: color-mix(in srgb, var(--card), var(--fg) 5%); }
 :root[data-theme='eink'] .continue-card { border-color: #000; border-radius: 0; }
 .continue-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.eyebrow { font-size: 0.75rem; font-weight: 650; letter-spacing: 0.06em; color: var(--accent); }
+.eyebrow { font-size: 0.75rem; font-weight: 650; letter-spacing: 0.06em; color: var(--hl-text); }
 .continue-title { font-family: var(--font-display); font-size: 1.35rem; font-weight: 600; line-height: 1.2; text-wrap: balance; }
 .continue-author { color: var(--muted); font-size: 0.95rem; }
 .continue-progress { display: flex; flex-direction: column; gap: 6px; margin-top: auto; padding-top: 10px; }
@@ -673,11 +682,11 @@ button.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
 
 /* ======================= לוגו ======================= */
 .logo-mark { display: block; flex: none; color: var(--fg); }
-.logo-ribbon { fill: var(--accent); }
-.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.logo-ribbon { fill: var(--hl); }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; flex-shrink: 1; }
 .brand-text { min-width: 0; }
-.brand-name { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 2rem; line-height: 1; letter-spacing: -0.005em; }
-.brand-tagline { margin: 6px 0 0; font-size: 0.9rem; color: var(--muted); }
-.brand.lg { flex-direction: column; gap: 14px; text-align: center; margin: 9vh 0 28px; }
-.brand.lg .brand-name { font-size: 2.6rem; }
+.brand-name { margin: 0; font-family: var(--font-brand); font-weight: 700; font-size: 1.4rem; line-height: 1; letter-spacing: 0.03em; text-transform: uppercase; }
+.brand-tagline { margin: 8px 0 0; font-family: var(--font-brand); font-weight: 500; font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.brand.lg { flex-direction: column; gap: 18px; text-align: center; margin: 8vh 0 28px; }
+.brand.lg .brand-name { font-size: 2.3rem; }
 .login-card { max-width: 420px; margin-inline: auto; }

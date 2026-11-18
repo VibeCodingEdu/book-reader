@@ -425,7 +425,7 @@ export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog }: Pro
 
       {books?.length === 0 && (
         <section class="empty">
-          <h2>חדר הקריאה מחכה לספר הראשון</h2>
+          <h2>הספרייה שלך מחכה לספר הראשון</h2>
           <p class="muted">אפשר לבחור ספר לפי רמה מהקטלוגים, לייבא מ-Gutenberg, או להעלות קובץ EPUB, PDF או TXT.</p>
         </section>
       )}

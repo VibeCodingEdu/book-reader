@@ -1,13 +1,13 @@
 {
-  "name": "חדר קריאה",
-  "short_name": "חדר קריאה",
+  "name": "LingoRead",
+  "short_name": "LingoRead",
   "lang": "he",
   "dir": "rtl",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#fbfaf7",
-  "theme_color": "#fbfaf7",
+  "background_color": "#faf8f3",
+  "theme_color": "#faf8f3",
   "icons": [
     {
       "src": "icon.svg",

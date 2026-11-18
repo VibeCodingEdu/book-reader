@@ -24,7 +24,7 @@ export function ReaderHeader({ book, chapterIdx, viewMode, onToggleMode, onBack,
   return (
     <>
       <header class="reader-bar">
-        <button class="icon-btn" onClick={onBack} aria-label="חזרה לחדר קריאה">
+        <button class="icon-btn" onClick={onBack} aria-label="חזרה לספרייה">
           <Icon name="back" />
         </button>
         <button class="toc-btn" onClick={onOpenToc} aria-label="תוכן עניינים, סימניות והערות">

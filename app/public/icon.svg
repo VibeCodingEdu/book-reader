@@ -1,13 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- אייקון "חדר קריאה": אותו סימן כמו src/Logo.tsx, בקרם על רקע חלודה -->
-  <rect width="512" height="512" rx="112" fill="#9a4a22"/>
-  <g transform="translate(80 56) scale(5.5)">
-    <g fill="none" stroke="#f6eedf" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M11 54V33a21 21 0 0 1 42 0v21"/>
-      <path d="M6.5 54h51"/>
-      <path d="M32 12v26.5"/>
-      <path d="M32 38.5c-4.2-2.5-9.6-3.1-15-2.2v14.9c5.4-.9 10.8-.3 15 2.2M32 38.5c4.2-2.5 9.6-3.1 15-2.2v14.9c-5.4-.9-10.8-.3-15 2.2M32 38.5v14.9"/>
-    </g>
-    <path d="M36 50.6h4v10.2l-2-1.8-2 1.8z" fill="#e8b48a"/>
-  </g>
+  <!-- אייקון LingoRead: אותו סימן כמו src/Logo.tsx, בכחול-דיו על נייר חם -->
+  <rect width="512" height="512" rx="112" fill="#faf8f3"/>
+  <svg x="76" y="70" width="360" height="360" viewBox="55 42 930 930">
+    <defs><mask id="icon-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="1040" height="1040"><rect width="1040" height="1040" fill="#fff"/><path d="M107 688L190 573C330 578 460 620 520 714C580 620 710 578 850 573L933 688C820 700 620 735 520 790C420 735 220 700 107 688Z" fill="#000"/><path d="M132 668L190 573C330 578 460 620 520 714C580 620 710 578 850 573L908 668" fill="none" stroke="#000" stroke-width="82" stroke-linejoin="round"/></mask></defs>
+        <g fill="#14213d"><path d="M520 52C546 76 552 126 520 156C488 126 494 76 520 52Z"/><path d="M511 196C468 196 436 166 434 127C480 125 509 152 511 196Z"/><path d="M529 196C572 196 604 166 606 127C560 125 531 152 529 196Z"/><path d="M505.5 352h29v194l-14.5-13-14.5 13zM504 353 520 322 536 353z"/></g>
+        <path d="M151 925 520 254 889 925" fill="none" stroke="#14213d" stroke-width="78" stroke-linecap="round" stroke-linejoin="round" mask="url(#icon-cut)"/>
+        <g fill="none" stroke="#14213d" stroke-linecap="round" stroke-linejoin="round"><path d="M107 688C250 700 420 735 520 788C620 735 790 700 933 688" stroke-width="42"/><path d="M132 668L190 573C330 578 460 620 520 714C580 620 710 578 850 573L908 668" stroke-width="29"/><path d="M178 639C320 645 450 676 506 746M862 639C720 645 590 676 534 746" stroke-width="30"/></g>
+        <path d="M468 822Q520 842 572 822V962L520 925 468 962Z" fill="#e08a1e"/>
+  </svg>
 </svg>
