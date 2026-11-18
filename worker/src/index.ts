@@ -19,6 +19,8 @@ import type {
 import { looksBroken, translateAll } from './translate/batch';
 import { countChars, GOOGLE_FREE_CHARS, GOOGLE_NMT } from './translate/google';
 import { validateUpload } from './upload';
+import { billedChars, buildSsml, checkTimepoints } from '../../shared/tts';
+import { DEFAULT_TTS_MONTHLY_CHARS, GOOGLE_TTS, isAllowedVoice, listVoices, synthesize, toBase64 } from './tts';
 import { fetchExternal } from './external';
 import { passphraseMatches, signToken, verifyToken, type TokenPayload } from './auth';
 import { importGutenberg, searchGutenberg } from './gutenberg';
@@ -34,6 +36,10 @@ export interface Env {
   ANTHROPIC_API_KEY?: string;
   GEMINI_API_KEY?: string;
   GOOGLE_TRANSLATE_API_KEY?: string;
+  /** מפתח Google Cloud Text-to-Speech (הקראה) */
+  GOOGLE_TTS_API_KEY?: string;
+  /** מכסת תווים חודשית להקראה (ברירת מחדל זהירה) */
+  TTS_MONTHLY_CHARS?: string;
   DEFAULT_ENGINE?: string;
   MONTHLY_CAP_USD?: string;
 }
@@ -465,6 +471,32 @@ app.post('/api/reviews', async (c) => {
   }
   await store.addReviews(c.env.DB, items as Review[]);
   return c.json({ ok: true });
+});
+
+// ---------- הקראה (Google TTS) ----------
+
+const TTS_OFF = 'ההקראה לא מוגדרת בשרת (חסר מפתח GOOGLE_TTS_API_KEY)';
+
+app.get('/api/tts/voices', async (c) => {
+  if (!c.env.GOOGLE_TTS_API_KEY) return c.json({ error: TTS_OFF }, 501);
+  return c.json({ voices: await listVoices(c.env.GOOGLE_TTS_API_KEY) });
+});
+
+/** דוגמת קול קצרה (לבחירת קול ולבדיקה שזמני המילים חוזרים). נספרת במכסת התווים החודשית */
+app.post('/api/tts/sample', async (c) => {
+  if (!c.env.GOOGLE_TTS_API_KEY) return c.json({ error: TTS_OFF }, 501);
+  const body = await c.req.json<{ voice?: string; text?: string }>();
+  const text = (body.text ?? '').trim();
+  if (!body.voice || !isAllowedVoice(body.voice)) return c.json({ error: 'קול לא נתמך' }, 400);
+  if (!text || text.length > 400) return c.json({ error: 'טקסט לדוגמה חייב להיות עד 400 תווים' }, 400);
+  const { ssml, marks } = buildSsml([text]);
+  const chars = billedChars(ssml);
+  const limit = Number(c.env.TTS_MONTHLY_CHARS ?? DEFAULT_TTS_MONTHLY_CHARS);
+  const used = (await store.monthSpend(c.env.DB)).byEngine[GOOGLE_TTS]?.chars ?? 0;
+  if (used + chars > limit) return c.json({ error: `מכסת התווים החודשית להקראה נוצלה (${used.toLocaleString('en-US')} מתוך ${limit.toLocaleString('en-US')})` }, 429);
+  const { audio, timepoints } = await synthesize(c.env.GOOGLE_TTS_API_KEY, ssml, body.voice);
+  await store.addSpend(c.env.DB, GOOGLE_TTS, 0, chars);
+  return c.json({ audio: toBase64(audio), mime: 'audio/mpeg', timepoints, check: checkTimepoints(marks, timepoints), chars });
 });
 
 export default app;

@@ -2,3 +2,5 @@
 # .dev.vars לא נכנס ל-Git. את הקובץ הזה (.example) לא ממלאים בסודות אמיתיים!
 PASSPHRASE=local-test-passphrase
 TOKEN_SECRET=local-test-secret-change-me
+# הקראה (Google Text-to-Speech) – אופציונלי לפיתוח מקומי:
+# GOOGLE_TTS_API_KEY=

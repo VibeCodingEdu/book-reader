@@ -3,6 +3,7 @@ import { ENGINES } from '../../shared/translate';
 import { getSpend, type Session, type Spend } from './api';
 import { collectDiagnostics } from './diagnostics';
 import type { DeviceSettings, FontFamily, Theme } from './deviceSettings';
+import { VoicePicker } from './VoicePicker';
 import { Icon } from './Icon';
 import { useSheetDrag } from './useSheetDrag';
 
@@ -170,6 +171,8 @@ export function SettingsSheet({ settings: s, session, onChange, onClose, onLogou
             <span class="muted small block">כשכבוי: הלחיצה מסמנת ומאפשרת השמעה, ומתרגמים רק בכפתור "תרגם".</span>
           </span>
         </label>
+
+        <VoicePicker voice={s.ttsVoice} onChange={(ttsVoice) => set({ ttsVoice })} />
 
         {spend && (
           <p class="muted small">

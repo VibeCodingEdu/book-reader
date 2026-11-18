@@ -245,6 +245,25 @@ export const getReviewsAfter = (after: number) =>
 export const postReviews = (items: Review[], keepalive = false) =>
   request('/api/reviews', { method: 'POST', body: JSON.stringify({ items }), keepalive });
 
+// ---------- הקראה ----------
+
+export interface TtsVoice {
+  name: string;
+  gender: string;
+  language: string;
+  type: 'Wavenet' | 'Neural2';
+}
+export interface TtsSample {
+  /** MP3 בבסיס 64 */
+  audio: string;
+  mime: string;
+  check: { sent: number; returned: number; missing: string[] };
+  chars: number;
+}
+export const getTtsVoices = () => request<{ voices: TtsVoice[] }>('/api/tts/voices').then((r) => r.voices);
+export const getTtsSample = (voice: string, text: string) =>
+  request<TtsSample>('/api/tts/sample', { method: 'POST', body: JSON.stringify({ voice, text }) });
+
 export interface Spend {
   month: string;
   cap: number;

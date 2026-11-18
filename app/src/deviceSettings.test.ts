@@ -12,9 +12,13 @@ describe('parseSettings', () => {
 
   it('שומר ערכים תקינים', () => {
     const s = parseSettings(
-      JSON.stringify({ theme: 'eink', fontSize: 24, fontFamily: 'sans', lineHeight: 1.8, margin: 32, engine: 'gemini-flash-lite', autoTranslate: false, viewMode: 'study', parallel: 'hide', newPerDay: 15, practiceMode: 'type', updatedAt: 5 }),
+      JSON.stringify({ theme: 'eink', fontSize: 24, fontFamily: 'sans', lineHeight: 1.8, margin: 32, engine: 'gemini-flash-lite', autoTranslate: false, viewMode: 'study', parallel: 'hide', newPerDay: 15, practiceMode: 'type', ttsVoice: 'en-US-Wavenet-D', updatedAt: 5 }),
     );
-    expect(s).toEqual({ theme: 'eink', fontSize: 24, fontFamily: 'sans', lineHeight: 1.8, margin: 32, engine: 'gemini-flash-lite', autoTranslate: false, viewMode: 'study', parallel: 'hide', newPerDay: 15, practiceMode: 'type', updatedAt: 5 });
+    expect(s).toEqual({ theme: 'eink', fontSize: 24, fontFamily: 'sans', lineHeight: 1.8, margin: 32, engine: 'gemini-flash-lite', autoTranslate: false, viewMode: 'study', parallel: 'hide', newPerDay: 15, practiceMode: 'type', ttsVoice: 'en-US-Wavenet-D', updatedAt: 5 });
+  });
+
+  it('קול הקראה לא תקין מתאפס', () => {
+    expect(parseSettings(JSON.stringify({ ttsVoice: 'x"; drop' })).ttsVoice).toBe('');
   });
 
   it('מחליף ערכים לא חוקיים בברירת המחדל', () => {

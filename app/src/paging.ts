@@ -38,28 +38,9 @@ export function pageForAnchor(starts: SentenceStart[], anchor: string | null): n
 }
 
 // ---------- פירוק משפט למילים ----------
-
-export interface Token {
-  text: string;
-  word: boolean;
-  /** מיקום באותיות בתוך המשפט */
-  offset: number;
-}
-
-const WORD = /[A-Za-z0-9À-ɏ]+(?:['’][A-Za-z]+)*(?:-[A-Za-zÀ-ɏ]+)*/g;
-
-export function tokenize(sentence: string): Token[] {
-  const out: Token[] = [];
-  let last = 0;
-  for (const m of sentence.matchAll(WORD)) {
-    const i = m.index ?? 0;
-    if (i > last) out.push({ text: sentence.slice(last, i), word: false, offset: last });
-    out.push({ text: m[0], word: true, offset: i });
-    last = i + m[0].length;
-  }
-  if (last < sentence.length) out.push({ text: sentence.slice(last), word: false, offset: last });
-  return out;
-}
+// הפונקציה עצמה ב-shared/tokenize.ts: השרת (הקראה) והאפליקציה חייבים לפרק משפטים באותו אופן בדיוק.
+export { tokenize, type Token } from '../../shared/tokenize';
+import type { Token } from '../../shared/tokenize';
 
 /** אילו מילים במשפט שייכות ליחידה שזוהתה ("broke out") – בחלון קטן סביב המילה שנלחצה */
 export function unitTokenOffsets(tokens: Token[], tappedOffset: number, unit: string, lemma = ''): number[] {

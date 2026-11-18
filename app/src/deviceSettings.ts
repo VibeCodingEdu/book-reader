@@ -20,6 +20,8 @@ export interface DeviceSettings {
   /** תרגול: כמה מילים חדשות להתחיל בכל יום */
   newPerDay: number;
   practiceMode: PracticeMode;
+  /** קול ההקראה (Google TTS), למשל en-US-Wavenet-D; ריק = עוד לא נבחר */
+  ttsVoice: string;
   updatedAt: number;
 }
 
@@ -43,6 +45,7 @@ export const DEFAULT_SETTINGS: DeviceSettings = {
   parallel: 'off',
   newPerDay: 10,
   practiceMode: 'reveal',
+  ttsVoice: '',
   updatedAt: 0,
 };
 
@@ -67,6 +70,7 @@ export function normalizeSettings(obj: Partial<DeviceSettings> | null | undefine
     parallel: o.parallel === 'show' || o.parallel === 'hide' ? o.parallel : 'off',
     newPerDay: Number.isInteger(o.newPerDay) ? num(o.newPerDay, 0, 50, DEFAULT_SETTINGS.newPerDay) : DEFAULT_SETTINGS.newPerDay,
     practiceMode: PRACTICE_MODES.includes(o.practiceMode as PracticeMode) ? (o.practiceMode as PracticeMode) : 'reveal',
+    ttsVoice: typeof o.ttsVoice === 'string' && /^[a-z]{2,3}-[A-Z]{2}-(Wavenet|Neural2)-[A-Z]$/.test(o.ttsVoice) ? o.ttsVoice : '',
     updatedAt: typeof o.updatedAt === 'number' ? o.updatedAt : 0,
   };
 }
