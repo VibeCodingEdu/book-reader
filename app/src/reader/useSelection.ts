@@ -8,6 +8,7 @@ import { parseSentenceId, type BookMeta, type Chapter } from '../../../shared/bo
 import { friendlyError, lookupWord, translateText } from '../api';
 import type { DeviceSettings } from '../deviceSettings';
 import { tokenize, unitTokenOffsets } from '../paging';
+import { savedAt, type SavedIndex } from '../savedWords';
 import type { RangeSel, RangeStartSel, Selection, WordSel } from '../WordSheet';
 
 interface Options {
@@ -16,11 +17,13 @@ interface Options {
   settings: DeviceSettings;
   /** האלמנט שמכיל את טקסט הפרק (משפטים עם data-sid, מילים עם .w) */
   rootRef: RefObject<HTMLElement | null>;
+  /** המילים השמורות: לחיצה על מילה שמורה מציגה את המשמעות השמורה, בלי קריאה למנוע */
+  savedIndex?: SavedIndex;
 }
 
 type WordInfo = { sid: string; sentence: string; word: string; offset: number };
 
-export function useSelection({ book, chapter, settings, rootRef }: Options) {
+export function useSelection({ book, chapter, settings, rootRef, savedIndex }: Options) {
   const [sel, setSel] = useState<Selection | null>(null);
   const reqId = useRef(0);
 
@@ -60,6 +63,21 @@ export function useSelection({ book, chapter, settings, rootRef }: Options) {
   };
 
   const openWord = (info: WordInfo) => {
+    const saved = savedIndex ? savedAt(savedIndex, info.sentence, info.offset)?.word : undefined;
+    if (saved) {
+      reqId.current++;
+      const result = {
+        unit: saved.unit,
+        unitType: saved.unitType,
+        lemma: saved.lemma,
+        pos: saved.pos,
+        ipa: saved.ipa,
+        contextMeaning: saved.meaning,
+        otherMeanings: [],
+      };
+      setSel({ kind: 'word', ...info, state: 'done', result, engine: 'saved', cached: true } as WordSel);
+      return;
+    }
     const base = { kind: 'word', ...info, state: 'idle' } as WordSel;
     if (settings.autoTranslate) runWord(base);
     else {

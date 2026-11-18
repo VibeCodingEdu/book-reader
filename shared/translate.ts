@@ -40,6 +40,8 @@ export const ENGINES = [
 export const ENGINE_LABELS: Record<string, string> = {
   ...Object.fromEntries(ENGINES.map((e) => [e.id, e.label])),
   'google-nmt': 'Google Translate',
+  /** משמעות שנשמרה ברשימת המילים (לא נקראה מהמנוע) */
+  saved: 'מהמילים שלי',
 };
 
 /** מסיר ניקוד, לצורך השוואות */

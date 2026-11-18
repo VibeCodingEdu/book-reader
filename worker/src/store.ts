@@ -1,6 +1,7 @@
 // גישה למסד הנתונים (Cloudflare D1)
 
 import type { Annotation } from '../../shared/annotations';
+import type { SavedWord } from '../../shared/words';
 import { wordsInChapter, type BookMeta, type Chapter } from '../../shared/book';
 import type { WordLookup } from '../../shared/translate';
 
@@ -229,6 +230,80 @@ export async function upsertAnnotations(db: D1Database, items: Annotation[]): Pr
               OR (excluded.updated_at = annotations.updated_at AND excluded.deleted = 1)`,
         )
         .bind(a.id, a.bookId, a.kind, a.sentenceId, a.parserVersion, a.text, a.excerpt, a.createdAt, a.updatedAt, a.deleted ? 1 : 0),
+    ),
+  );
+}
+
+// ---------- מילים שמורות ----------
+
+interface WordRow {
+  id: string;
+  book_id: string;
+  book_title: string;
+  sentence_id: string;
+  parser_version: number;
+  word_offset: number;
+  unit: string;
+  unit_type: string;
+  lemma: string;
+  pos: string;
+  ipa: string;
+  meaning: string;
+  sentence: string;
+  stage: string;
+  created_at: number;
+  updated_at: number;
+  deleted: number;
+}
+
+const wordFromRow = (r: WordRow): SavedWord => ({
+  id: r.id,
+  bookId: r.book_id,
+  bookTitle: r.book_title,
+  sentenceId: r.sentence_id,
+  parserVersion: r.parser_version,
+  wordOffset: r.word_offset,
+  unit: r.unit,
+  unitType: r.unit_type as SavedWord['unitType'],
+  lemma: r.lemma,
+  pos: r.pos,
+  ipa: r.ipa,
+  meaning: r.meaning,
+  sentence: r.sentence,
+  stage: r.stage as SavedWord['stage'],
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+  deleted: !!r.deleted,
+});
+
+/** כל המילים, כולל מחוקות (כדי שמכשירים אחרים ידעו על המחיקה) */
+export async function listWords(db: D1Database): Promise<SavedWord[]> {
+  const { results } = await db.prepare('SELECT * FROM words ORDER BY created_at, id').all<WordRow>();
+  return results.map(wordFromRow);
+}
+
+/** שמירה: רשומה חדשה נכנסת; קיימת מתעדכנת רק אם הגרסה שהגיעה חדשה יותר (או מחיקה בשוויון) */
+export async function upsertWords(db: D1Database, items: SavedWord[]): Promise<void> {
+  if (!items.length) return;
+  await db.batch(
+    items.map((w) =>
+      db
+        .prepare(
+          `INSERT INTO words (id, book_id, book_title, sentence_id, parser_version, word_offset, unit, unit_type, lemma, pos, ipa,
+                              meaning, sentence, stage, created_at, updated_at, deleted)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             book_title = excluded.book_title, sentence_id = excluded.sentence_id, parser_version = excluded.parser_version,
+             word_offset = excluded.word_offset, unit = excluded.unit, unit_type = excluded.unit_type, lemma = excluded.lemma,
+             pos = excluded.pos, ipa = excluded.ipa, meaning = excluded.meaning, sentence = excluded.sentence,
+             stage = excluded.stage, updated_at = excluded.updated_at, deleted = excluded.deleted
+           WHERE excluded.updated_at > words.updated_at
+              OR (excluded.updated_at = words.updated_at AND excluded.deleted = 1)`,
+        )
+        .bind(
+          w.id, w.bookId, w.bookTitle, w.sentenceId, w.parserVersion, w.wordOffset, w.unit, w.unitType, w.lemma, w.pos, w.ipa,
+          w.meaning, w.sentence, w.stage, w.createdAt, w.updatedAt, w.deleted ? 1 : 0,
+        ),
     ),
   );
 }

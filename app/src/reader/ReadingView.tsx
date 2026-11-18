@@ -6,6 +6,8 @@ import { Icon } from '../Icon';
 import { ChapterText } from './SentenceText';
 import type { ViewProps } from './viewProps';
 import { usePagination } from './usePagination';
+import { saveProps } from './saveProps';
+import { useSavedMarks } from './useSavedMarks';
 import { useSelection } from './useSelection';
 import { useSentenceTranslations } from './useSentenceTranslations';
 
@@ -19,7 +21,7 @@ function liveMotion(): boolean {
   );
 }
 
-export function ReadingView({ book, settings, ch, clearRef, ann, onEditNote, percent, immersive, onToggleImmersive }: ViewProps) {
+export function ReadingView({ book, settings, ch, clearRef, ann, words, onEditNote, percent, immersive, onToggleImmersive }: ViewProps) {
   const pg = usePagination({
     chapter: ch.chapter,
     settings,
@@ -29,7 +31,8 @@ export function ReadingView({ book, settings, ch, clearRef, ann, onEditNote, per
       if (anchor) ch.savePosition(anchor);
     },
   });
-  const selection = useSelection({ book, chapter: ch.chapter, settings, rootRef: pg.pagesRef });
+  const selection = useSelection({ book, chapter: ch.chapter, settings, rootRef: pg.pagesRef, savedIndex: words.index });
+  useSavedMarks(pg.pagesRef, ch.chapter, words.index, pg.dims);
   clearRef.current = selection.clear;
   const tr = useSentenceTranslations(book, ch.chapterIdx, settings);
 
@@ -257,6 +260,7 @@ export function ReadingView({ book, settings, ch, clearRef, ann, onEditNote, per
                 };
               })()
             : {})}
+          {...saveProps(selection.sel, words, book)}
         />
       )}
     </>

@@ -14,6 +14,7 @@ import { NoteEditor } from './reader/NoteEditor';
 import { TocSheet } from './reader/TocSheet';
 import { useAnnotations } from './reader/useAnnotations';
 import { useBookChapter } from './reader/useBookChapter';
+import { useWords } from './useWords';
 
 interface Props {
   book: BookMeta;
@@ -27,6 +28,7 @@ export function Reader({ book, settings, onBack, onOpenSettings, onPatchSettings
   const clearRef = useRef<() => void>(() => {});
   const ch = useBookChapter(book, () => clearRef.current());
   const ann = useAnnotations(book);
+  const words = useWords();
   const [tocOpen, setTocOpen] = useState(false);
   const [editing, setEditing] = useState<{ sid: string; sentence: string; existing?: Annotation } | null>(null);
   const study = settings.viewMode === 'study';
@@ -87,6 +89,7 @@ export function Reader({ book, settings, onBack, onOpenSettings, onPatchSettings
         clearRef={clearRef}
         onPatchSettings={onPatchSettings}
         ann={ann}
+        words={words}
         onEditNote={onEditNote}
         percent={percent}
         immersive={immersive}

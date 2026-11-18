@@ -14,6 +14,7 @@ import { loadSettings, normalizeSettings, saveSettings, type DeviceSettings } fr
 import { Catalog } from './Catalog';
 import { Library } from './Library';
 import { Reader } from './Reader';
+import { Words } from './Words';
 import { Brand } from './Logo';
 import { SettingsSheet } from './SettingsSheet';
 
@@ -33,6 +34,7 @@ export function App() {
   const [book, setBook] = useState<BookMeta | null>(null);
   const [catalog, setCatalog] = useState<Set<string> | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showWords, setShowWords] = useState(false);
 
   useEffect(() => setUnauthorizedHandler(() => setSession(null)), []);
 
@@ -109,6 +111,8 @@ export function App() {
           onOpenSettings={() => setShowSettings(true)}
           onPatchSettings={(patch) => updateSettings({ ...settings, ...patch })}
         />
+      ) : showWords ? (
+        <Words onBack={() => setShowWords(false)} />
       ) : catalog ? (
         <Catalog
           have={catalog}
@@ -119,7 +123,7 @@ export function App() {
           }}
         />
       ) : (
-        <Library onOpen={setBook} onOpenSettings={() => setShowSettings(true)} onOpenCatalog={setCatalog} />
+        <Library onOpen={setBook} onOpenSettings={() => setShowSettings(true)} onOpenCatalog={setCatalog} onOpenWords={() => setShowWords(true)} />
       )}
       {showSettings && (
         <SettingsSheet
@@ -131,6 +135,7 @@ export function App() {
             logout();
             setShowSettings(false);
             setBook(null);
+            setShowWords(false);
             setSession(null);
           }}
         />

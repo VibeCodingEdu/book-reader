@@ -60,9 +60,10 @@ interface Props {
   onOpen: (b: BookMeta) => void;
   onOpenSettings: () => void;
   onOpenCatalog: (have: Set<string>) => void;
+  onOpenWords: () => void;
 }
 
-export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog }: Props) {
+export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog, onOpenWords }: Props) {
   const onOpen = (b: BookMeta) => {
     markOpened(b.id);
     openBook(b);
@@ -299,6 +300,9 @@ export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog }: Pro
         <span class="spacer" />
         <button class="icon-btn" onClick={() => setAddOpen(!addOpen)} aria-expanded={addOpen} aria-label="הוספת ספר">
           <Icon name="plus" />
+        </button>
+        <button class="icon-btn" onClick={onOpenWords} aria-label="המילים שלי">
+          <Icon name="star" />
         </button>
         <button class="icon-btn" onClick={onOpenSettings} aria-label="הגדרות">
           <Icon name="settings" />

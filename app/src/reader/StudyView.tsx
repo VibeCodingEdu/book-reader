@@ -10,6 +10,8 @@ import { Icon } from '../Icon';
 import { SentenceSpan } from './SentenceText';
 import { screenStep, topVisibleId, type RowBox } from './studyAnchor';
 import type { ParallelMode } from '../deviceSettings';
+import { saveProps } from './saveProps';
+import { useSavedMarks } from './useSavedMarks';
 import { useSelection } from './useSelection';
 import { useSentenceTranslations, type SentenceTr } from './useSentenceTranslations';
 import type { ViewProps } from './viewProps';
@@ -17,9 +19,10 @@ import type { ViewProps } from './viewProps';
 const PARALLEL_NEXT: Record<ParallelMode, ParallelMode> = { off: 'show', show: 'hide', hide: 'off' };
 const PARALLEL_LABEL: Record<ParallelMode, string> = { off: 'כבוי', show: 'גלוי', hide: 'מוסתר' };
 
-export function StudyView({ book, settings, ch, clearRef, onPatchSettings, ann, onEditNote, percent }: ViewProps) {
+export function StudyView({ book, settings, ch, clearRef, onPatchSettings, ann, words, onEditNote, percent }: ViewProps) {
   const listRef = useRef<HTMLDivElement>(null);
-  const selection = useSelection({ book, chapter: ch.chapter, settings, rootRef: listRef });
+  const selection = useSelection({ book, chapter: ch.chapter, settings, rootRef: listRef, savedIndex: words.index });
+  useSavedMarks(listRef, ch.chapter, words.index);
   clearRef.current = selection.clear;
   const { chapter, chapterIdx, error } = ch;
   const speaking = useSpeakingKey();
@@ -317,6 +320,7 @@ export function StudyView({ book, settings, ch, clearRef, onPatchSettings, ann, 
           sentenceTr={selection.sel.kind === 'word' ? tr.get(selection.sel.sid) : undefined}
           onTranslateSentence={selection.sel.kind === 'word' ? () => tr.translateOne((selection.sel as { sid: string }).sid) : undefined}
           {...sheetAnnProps(selection.sel)}
+          {...saveProps(selection.sel, words, book)}
         />
       )}
     </>

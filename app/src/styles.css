@@ -735,3 +735,44 @@ button.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
 .collapse { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 240ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .collapse.open { grid-template-rows: 1fr; }
 .collapse > div { overflow: hidden; }
+
+/* ---------- מילים שמורות (אבן דרך 3א) ---------- */
+/* סימון בטקסט: קו תחתון לפי שלב. אותו מבנה גם ב-E-ink, אבל בדפוסי קו שונים (בלי צבע). */
+.w.sv { text-decoration-line: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.w.sv-new { text-decoration-color: var(--hl); }
+.w.sv-learning { text-decoration-color: color-mix(in srgb, var(--accent) 70%, var(--hl)); text-decoration-style: dashed; }
+.w.sv-known { text-decoration-color: var(--ok); text-decoration-thickness: 1px; }
+:root[data-theme='eink'] .w.sv { text-decoration-color: #000; }
+:root[data-theme='eink'] .w.sv-new { text-decoration-style: dotted; text-decoration-thickness: 2px; }
+:root[data-theme='eink'] .w.sv-learning { text-decoration-style: dashed; text-decoration-thickness: 2px; }
+:root[data-theme='eink'] .w.sv-known { text-decoration-style: solid; text-decoration-thickness: 1px; }
+
+.sheet-save { margin-top: 10px; gap: 8px; }
+.sheet-save button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem; }
+.sheet-save button[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+:root[data-theme='eink'] .sheet-save button[aria-pressed='true'] { background: #000; color: #fff; }
+
+/* מסך "המילים שלי" */
+.words-page { display: flex; flex-direction: column; gap: 12px; }
+.word-tools { display: flex; flex-direction: column; gap: 10px; }
+.search-field { display: flex; align-items: center; gap: 8px; border: var(--border-w) solid var(--line); border-radius: var(--radius-sm); padding: 0 12px; background: var(--raised); }
+.search-field input { border: 0; background: transparent; flex: 1; min-height: 44px; padding: 0; outline: none; }
+.word-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.word-row { display: flex; flex-direction: column; gap: 6px; }
+.word-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.word-unit { font-size: 1.25rem; font-weight: 600; direction: ltr; }
+.stage-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; background: var(--hl); }
+.stage-dot.sv-learning { background: color-mix(in srgb, var(--accent) 70%, var(--hl)); }
+.stage-dot.sv-known { background: var(--ok); }
+:root[data-theme='eink'] .stage-dot { background: #fff; border: 2px solid #000; }
+:root[data-theme='eink'] .stage-dot.sv-learning { background: repeating-linear-gradient(90deg, #000 0 2px, #fff 2px 4px); }
+:root[data-theme='eink'] .stage-dot.sv-known { background: #000; }
+.word-sentence { margin: 2px 0 0; direction: ltr; text-align: left; color: var(--muted); font-size: 0.95rem; }
+.word-sentence mark { background: color-mix(in srgb, var(--hl) 28%, transparent); color: var(--fg); border-radius: 3px; padding: 0 1px; }
+:root[data-theme='eink'] .word-sentence mark { background: none; text-decoration: underline 2px solid #000; }
+.word-source { margin: 0; font-size: 0.8rem; color: var(--muted); direction: ltr; text-align: left; }
+.word-actions { margin-top: 4px; }
+.word-edit { flex-wrap: nowrap; }
+.word-edit input { flex: 1; min-width: 0; min-height: 44px; }
+.stage-pick select { min-height: 36px; padding: 2px 10px; font-size: 0.85rem; background: transparent; }
+.empty-words { text-align: center; padding: 28px 20px; }

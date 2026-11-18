@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
 import type { TextTranslation, UnitType, WordLookup } from '../../shared/translate';
+import type { SavedWord } from '../../shared/words';
 import { ENGINE_LABELS } from '../../shared/translate';
 import { Icon } from './Icon';
 import { toggleSpeak, useSpeakingKey } from './speech';
@@ -46,6 +47,10 @@ interface Props {
   sentenceMarks?: { bookmarked: boolean; hasNote: boolean };
   onToggleBookmark?: () => void;
   onEditNote?: () => void;
+  /** המילה השמורה שמכסה את המילה שנלחצה (אם יש) */
+  savedWord?: SavedWord;
+  /** שמירה / הסרה מהמילים שלי (מוצג רק אחרי שהתרגום הגיע) */
+  onToggleSave?: () => void;
 }
 
 /** כפתור השמעה: בזמן ההשמעה – גל קול קטן מונפש (לחיצה עוצרת) */
@@ -86,7 +91,7 @@ function Skeleton({ label }: { label: string }) {
   );
 }
 
-export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSentence, sentenceMarks, onToggleBookmark, onEditNote }: Props) {
+export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSentence, sentenceMarks, onToggleBookmark, onEditNote, savedWord, onToggleSave }: Props) {
   const { sheetRef, handleProps } = useSheetDrag(onClose);
   const heading =
     sel.kind === 'range' ? sel.text : sel.kind === 'word' && sel.state === 'done' ? sel.result.unit : sel.word;
@@ -131,6 +136,22 @@ export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSe
       {sel.kind !== 'range-start' && sel.state === 'error' && <p class="msg bad">{sel.error}</p>}
 
       {sel.kind === 'word' && sel.state === 'done' && <LookupBody key={sel.result.unit} r={sel.result} engine={sel.engine} cached={sel.cached} />}
+      {sel.kind === 'word' && sel.state === 'done' && (onToggleSave || sel.engine === 'saved') && (
+        <div class="row sheet-save">
+          {onToggleSave && (
+            <button class={savedWord ? '' : 'secondary'} aria-pressed={!!savedWord} onClick={onToggleSave}>
+              <Icon name="star" size={18} />
+              {savedWord ? 'נשמרה במילים שלי' : 'שמירת מילה'}
+            </button>
+          )}
+          {sel.engine === 'saved' && (
+            <button class="secondary" onClick={onTranslate}>
+              <Icon name="translate" size={18} />
+              תרגום מחדש בהקשר הזה
+            </button>
+          )}
+        </div>
+      )}
       {sel.kind === 'range' && sel.state === 'done' && (
         <div class="reveal">
           <p class="sheet-meaning passage-tr">{sel.result.translation}</p>
@@ -216,7 +237,7 @@ function LookupBody({ r, engine, cached }: { r: WordLookup; engine: string; cach
       )}
       <p class="sheet-foot">
         {engineLabel(engine)}
-        {cached ? ' · מהמטמון' : ''}
+        {cached && engine !== 'saved' ? ' · מהמטמון' : ''}
       </p>
     </div>
   );

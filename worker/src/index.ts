@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
 import { validateAnnotation, type Annotation } from '../../shared/annotations';
+import { validateWord, type SavedWord } from '../../shared/words';
 import { normalizeMeta, parseSentenceId, parserVersionOf, sentenceId, type BookMeta, type Chapter } from '../../shared/book';
 import type {
   ChapterTranslateRequest,
@@ -425,6 +426,22 @@ app.put('/api/annotations', async (c) => {
     if (err) return c.json({ error: err }, 400);
   }
   await store.upsertAnnotations(c.env.DB, items as Annotation[]);
+  return c.json({ ok: true });
+});
+
+// ---------- מילים שמורות ----------
+
+app.get('/api/words', async (c) => c.json({ items: await store.listWords(c.env.DB) }));
+
+app.put('/api/words', async (c) => {
+  const body = await c.req.json<{ items?: unknown[] }>();
+  const items = Array.isArray(body.items) ? body.items : [];
+  if (items.length > 500) return c.json({ error: 'יותר מדי רשומות' }, 400);
+  for (const it of items) {
+    const err = validateWord(it);
+    if (err) return c.json({ error: err }, 400);
+  }
+  await store.upsertWords(c.env.DB, items as SavedWord[]);
   return c.json({ ok: true });
 });
 

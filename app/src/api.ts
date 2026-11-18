@@ -1,4 +1,5 @@
 import type { Annotation } from '../../shared/annotations';
+import type { SavedWord } from '../../shared/words';
 import type { BookMeta, Chapter } from '../../shared/book';
 import type {
   ChapterTranslateRequest,
@@ -227,6 +228,13 @@ export const getAnnotations = (bookId: string) =>
 
 export const putAnnotations = (items: Annotation[], keepalive = false) =>
   request('/api/annotations', { method: 'PUT', body: JSON.stringify({ items }), keepalive });
+
+// ---------- מילים שמורות ----------
+
+export const getWords = () => request<{ items: SavedWord[] }>('/api/words').then((r) => r.items);
+
+export const putWords = (items: SavedWord[], keepalive = false) =>
+  request('/api/words', { method: 'PUT', body: JSON.stringify({ items }), keepalive });
 
 export interface Spend {
   month: string;
