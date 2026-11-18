@@ -1,5 +1,6 @@
 import type { Annotation } from '../../shared/annotations';
 import type { Review } from '../../shared/review';
+import type { SegmentMeta } from '../../shared/audioTimeline';
 import type { SavedWord } from '../../shared/words';
 import type { BookMeta, Chapter } from '../../shared/book';
 import type {
@@ -263,6 +264,49 @@ export interface TtsSample {
 export const getTtsVoices = () => request<{ voices: TtsVoice[] }>('/api/tts/voices').then((r) => r.voices);
 export const getTtsSample = (voice: string, text: string) =>
   request<TtsSample>('/api/tts/sample', { method: 'POST', body: JSON.stringify({ voice, text }) });
+
+// ---------- הקראת פרק ----------
+
+export interface TtsPlanSegment {
+  para: number;
+  part: number;
+  sids: string[];
+  chars: number;
+  cached: boolean;
+}
+export interface TtsPlan {
+  segments: TtsPlanSegment[];
+  totalChars: number;
+  uncachedChars: number;
+}
+export interface TtsChapterRef {
+  bookId: string;
+  chapter: number;
+  voice: string;
+}
+export const getTtsPlan = (r: TtsChapterRef) =>
+  request<TtsPlan>(`/api/tts/plan?bookId=${encodeURIComponent(r.bookId)}&chapter=${r.chapter}&voice=${encodeURIComponent(r.voice)}`);
+
+/** מוודא שהקטע מוכן (מסנתז אם צריך) ומחזיר את כרטיס הזמנים שלו */
+export const postTtsSegment = (r: TtsChapterRef & { para: number; part: number }) =>
+  request<{ meta: SegmentMeta; cached: boolean }>('/api/tts/segment', {
+    method: 'POST',
+    body: JSON.stringify({ bookId: r.bookId, chapter: r.chapter, para: r.para, part: r.part, voice: r.voice }),
+  });
+
+/** קובץ ה-MP3 של קטע (עם הרשאה בכותרת, ולכן לא דרך <audio src>) */
+export async function fetchTtsAudio(r: TtsChapterRef & { para: number; part: number }): Promise<ArrayBuffer> {
+  const token = loadSession()?.token;
+  const q = `bookId=${encodeURIComponent(r.bookId)}&chapter=${r.chapter}&voice=${encodeURIComponent(r.voice)}&para=${r.para}&part=${r.part}`;
+  let res: Response;
+  try {
+    res = await fetch(`${WORKER_URL}/api/tts/audio?${q}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  } catch {
+    throw new ApiError(0, 'אין חיבור לשרת');
+  }
+  if (!res.ok) throw new ApiError(res.status, ((await res.json().catch(() => ({}))) as { error?: string }).error ?? `שגיאת שרת (${res.status})`);
+  return res.arrayBuffer();
+}
 
 export interface Spend {
   month: string;

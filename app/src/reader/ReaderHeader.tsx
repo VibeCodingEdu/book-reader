@@ -15,9 +15,13 @@ interface Props {
   onBack: () => void;
   onOpenToc: () => void;
   onOpenSettings: () => void;
+  /** הקראה (Google TTS) */
+  ttsOpen: boolean;
+  ttsPlaying: boolean;
+  onToggleTts: () => void;
 }
 
-export function ReaderHeader({ book, chapterIdx, viewMode, onToggleMode, onBack, onOpenToc, onOpenSettings }: Props) {
+export function ReaderHeader({ book, chapterIdx, viewMode, onToggleMode, onBack, onOpenToc, onOpenSettings, ttsOpen, ttsPlaying, onToggleTts }: Props) {
   const [audioOpen, setAudioOpen] = useState(false);
   const [audioMounted, setAudioMounted] = useState(false);
 
@@ -44,16 +48,19 @@ export function ReaderHeader({ book, chapterIdx, viewMode, onToggleMode, onBack,
         {book.audioUrl && (
           <button
             class="icon-btn"
-            aria-label="הקראה (MP3)"
+            aria-label="הקראה אנושית (MP3 מהאתר)"
             aria-pressed={audioOpen}
             onClick={() => {
               setAudioMounted(true);
               setAudioOpen(!audioOpen);
             }}
           >
-            <Icon name="headphones" />
+            <Icon name="speak" />
           </button>
         )}
+        <button class={`icon-btn ${ttsPlaying ? 'tts-on' : ''}`} aria-label="הקראה" aria-pressed={ttsOpen} onClick={onToggleTts}>
+          <Icon name="headphones" />
+        </button>
         <button class="icon-btn" onClick={onOpenSettings} aria-label="הגדרות תצוגה">
           <Icon name="type" />
         </button>

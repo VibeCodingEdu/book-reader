@@ -19,11 +19,19 @@ import type { ViewProps } from './viewProps';
 const PARALLEL_NEXT: Record<ParallelMode, ParallelMode> = { off: 'show', show: 'hide', hide: 'off' };
 const PARALLEL_LABEL: Record<ParallelMode, string> = { off: 'כבוי', show: 'גלוי', hide: 'מוסתר' };
 
-export function StudyView({ book, settings, ch, clearRef, onPatchSettings, ann, words, onEditNote, percent }: ViewProps) {
+export function StudyView({ book, settings, ch, clearRef, followRef, onPatchSettings, ann, words, onEditNote, percent }: ViewProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const selection = useSelection({ book, chapter: ch.chapter, settings, rootRef: listRef, savedIndex: words.index });
   useSavedMarks(listRef, ch.chapter, words.index);
   clearRef.current = selection.clear;
+  // הקראה: גוללים למשפט המוקרא כשעוברים למשפט חדש
+  followRef.current = (el, newSentence) => {
+    if (!newSentence) return;
+    const row = el.closest<HTMLElement>('[data-row]');
+    if (!row) return;
+    const still = document.documentElement.dataset.theme === 'eink' || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    row.scrollIntoView({ block: 'center', behavior: still ? 'auto' : 'smooth' });
+  };
   const { chapter, chapterIdx, error } = ch;
   const speaking = useSpeakingKey();
   const marks = useMemo(() => ann.marksFor(chapterIdx, chapter), [ann.marksFor, chapterIdx, chapter]);

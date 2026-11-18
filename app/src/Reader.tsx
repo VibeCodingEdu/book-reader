@@ -14,6 +14,8 @@ import { NoteEditor } from './reader/NoteEditor';
 import { TocSheet } from './reader/TocSheet';
 import { useAnnotations } from './reader/useAnnotations';
 import { useBookChapter } from './reader/useBookChapter';
+import { TtsBar } from './reader/TtsBar';
+import { useChapterTts } from './reader/useChapterTts';
 import { useWords } from './useWords';
 
 interface Props {
@@ -31,6 +33,17 @@ export function Reader({ book, settings, onBack, onOpenSettings, onPatchSettings
   const ch = useBookChapter(book, () => clearRef.current(), startSid);
   const ann = useAnnotations(book);
   const words = useWords();
+  // הקראה: הנגן חי כאן (מעל שני המסכים), והמסך הפעיל רושם ב-followRef איך להראות את המילה המוקראת
+  const followRef = useRef<(el: HTMLElement, newSentence: boolean) => void>(() => {});
+  const [ttsOpen, setTtsOpen] = useState(false);
+  const tts = useChapterTts({
+    book,
+    chapterIdx: ch.chapterIdx,
+    voice: settings.ttsVoice,
+    startSid: ch.chapterIdx !== null && ch.posSid?.startsWith(`c${ch.chapterIdx}.`) ? ch.posSid : null,
+    follow: (el, n) => followRef.current(el, n),
+    onChapterEnd: () => ch.nextChapter(),
+  });
   const [tocOpen, setTocOpen] = useState(false);
   const [editing, setEditing] = useState<{ sid: string; sentence: string; existing?: Annotation } | null>(null);
   const study = settings.viewMode === 'study';
@@ -82,13 +95,18 @@ export function Reader({ book, settings, onBack, onOpenSettings, onPatchSettings
         onBack={onBack}
         onOpenToc={() => setTocOpen(true)}
         onOpenSettings={onOpenSettings}
+        ttsOpen={ttsOpen}
+        ttsPlaying={tts.playing}
+        onToggleTts={() => setTtsOpen(!ttsOpen)}
       />
       )}
+      {!immersive && <TtsBar tts={tts} open={ttsOpen} onOpenSettings={onOpenSettings} />}
       <View
         book={book}
         settings={settings}
         ch={ch}
         clearRef={clearRef}
+        followRef={followRef}
         onPatchSettings={onPatchSettings}
         ann={ann}
         words={words}

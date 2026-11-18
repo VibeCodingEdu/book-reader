@@ -105,6 +105,17 @@ jobs:
         working-directory: worker
         run: npx wrangler d1 migrations apply book-reader --remote
 
+      # דלי ה-R2 של קובצי ההקראה: יוצר אם אינו קיים (דורש R2 מופעל בחשבון, והרשאת R2 בטוקן)
+      - name: Ensure R2 bucket
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: worker
+        run: |
+          if npx wrangler r2 bucket list | grep -q "book-reader-audio"; then
+            echo "R2 bucket exists"
+          else
+            npx wrangler r2 bucket create book-reader-audio
+          fi
+
       - run: npx wrangler deploy
         if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: worker

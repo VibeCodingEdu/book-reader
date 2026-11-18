@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
 import { validateAnnotation, type Annotation } from '../../shared/annotations';
@@ -21,6 +21,7 @@ import { countChars, GOOGLE_FREE_CHARS, GOOGLE_NMT } from './translate/google';
 import { validateUpload } from './upload';
 import { billedChars, buildSsml, checkTimepoints } from '../../shared/tts';
 import { DEFAULT_TTS_MONTHLY_CHARS, GOOGLE_TTS, isAllowedVoice, listVoices, synthesize, toBase64 } from './tts';
+import { cachedSegments, chapterPrefix, ensureSegment, planSegments, QuotaError, SegmentTooLong, segmentBase } from './ttsAudio';
 import { fetchExternal } from './external';
 import { passphraseMatches, signToken, verifyToken, type TokenPayload } from './auth';
 import { importGutenberg, searchGutenberg } from './gutenberg';
@@ -33,6 +34,8 @@ export interface Env {
   PASSPHRASE: string;
   TOKEN_SECRET: string;
   DB: D1Database;
+  /** אחסון קובצי ההקראה (R2); חסר = הקראת פרקים לא זמינה */
+  AUDIO?: R2Bucket;
   ANTHROPIC_API_KEY?: string;
   GEMINI_API_KEY?: string;
   GOOGLE_TRANSLATE_API_KEY?: string;
@@ -497,6 +500,81 @@ app.post('/api/tts/sample', async (c) => {
   const { audio, timepoints } = await synthesize(c.env.GOOGLE_TTS_API_KEY, ssml, body.voice);
   await store.addSpend(c.env.DB, GOOGLE_TTS, 0, chars);
   return c.json({ audio: toBase64(audio), mime: 'audio/mpeg', timepoints, check: checkTimepoints(marks, timepoints), chars });
+});
+
+// ---------- הקראת פרק: תכנית, קטעים (עם מטמון ב-R2) והורדת שמע ----------
+
+const AUDIO_OFF = 'אחסון השמע (R2) לא מוגדר בשרת';
+const BOOK_ID = /^[\w.-]{1,100}$/;
+
+/** הספר, הפרק והחלוקה לקטעים, או תשובת שגיאה מוכנה */
+async function ttsChapter(c: Context<AppEnv>, q: { bookId?: unknown; chapter?: unknown; voice?: unknown }) {
+  if (!c.env.GOOGLE_TTS_API_KEY) return { error: c.json({ error: TTS_OFF }, 501) };
+  if (!c.env.AUDIO) return { error: c.json({ error: AUDIO_OFF }, 501) };
+  const bookId = String(q.bookId ?? '');
+  const chapterIdx = Number(q.chapter);
+  const voice = String(q.voice ?? '');
+  if (!BOOK_ID.test(bookId) || !Number.isInteger(chapterIdx) || chapterIdx < 0 || !isAllowedVoice(voice)) {
+    return { error: c.json({ error: 'בקשה לא תקינה' }, 400) };
+  }
+  const book = await store.getBook(c.env.DB, bookId);
+  const chapter = book ? await store.getChapter(c.env.DB, bookId, chapterIdx) : null;
+  if (!book || !chapter) return { error: c.json({ error: 'הפרק לא נמצא' }, 404) };
+  const prefix = chapterPrefix(bookId, parserVersionOf(book), voice, chapterIdx);
+  return { chapterIdx, chapter, voice, prefix, segments: planSegments(chapterIdx, chapter) };
+}
+
+app.get('/api/tts/plan', async (c) => {
+  const r = await ttsChapter(c, c.req.query());
+  if ('error' in r) return r.error;
+  const cached = await cachedSegments(c.env.AUDIO!, r.prefix);
+  const segments = r.segments.map((s) => ({
+    para: s.para,
+    part: s.part,
+    sids: s.sids,
+    chars: billedChars(buildSsml(s.sentences).ssml),
+    cached: cached.has(segmentBase(r.prefix, s.para, s.part)),
+  }));
+  return c.json({
+    segments,
+    totalChars: segments.reduce((n, s) => n + s.chars, 0),
+    uncachedChars: segments.reduce((n, s) => n + (s.cached ? 0 : s.chars), 0),
+  });
+});
+
+app.post('/api/tts/segment', async (c) => {
+  const body = await c.req.json<{ bookId?: string; chapter?: number; para?: number; part?: number; voice?: string }>();
+  const r = await ttsChapter(c, body);
+  if ('error' in r) return r.error;
+  const ref = r.segments.find((s) => s.para === body.para && s.part === body.part);
+  if (!ref) return c.json({ error: 'הקטע לא נמצא' }, 404);
+  const limit = Number(c.env.TTS_MONTHLY_CHARS ?? DEFAULT_TTS_MONTHLY_CHARS);
+  try {
+    const { meta, cached } = await ensureSegment(
+      {
+        bucket: c.env.AUDIO!,
+        synth: (ssml) => synthesize(c.env.GOOGLE_TTS_API_KEY!, ssml, r.voice),
+        used: async () => (await store.monthSpend(c.env.DB)).byEngine[GOOGLE_TTS]?.chars ?? 0,
+        limit,
+        onBilled: (n) => store.addSpend(c.env.DB, GOOGLE_TTS, 0, n),
+      },
+      r.prefix,
+      ref,
+    );
+    return c.json({ meta, cached });
+  } catch (e) {
+    if (e instanceof QuotaError) return c.json({ error: e.message }, 429);
+    if (e instanceof SegmentTooLong) return c.json({ error: e.message }, 422);
+    throw e;
+  }
+});
+
+app.get('/api/tts/audio', async (c) => {
+  const r = await ttsChapter(c, c.req.query());
+  if ('error' in r) return r.error;
+  const obj = await c.env.AUDIO!.get(`${segmentBase(r.prefix, Number(c.req.query('para')), Number(c.req.query('part')))}.mp3`);
+  if (!obj) return c.json({ error: 'הקטע עוד לא הוכן' }, 404);
+  return c.body(obj.body, 200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'private, max-age=31536000, immutable' });
 });
 
 export default app;

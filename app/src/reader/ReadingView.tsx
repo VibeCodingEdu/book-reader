@@ -21,7 +21,7 @@ function liveMotion(): boolean {
   );
 }
 
-export function ReadingView({ book, settings, ch, clearRef, ann, words, onEditNote, percent, immersive, onToggleImmersive }: ViewProps) {
+export function ReadingView({ book, settings, ch, clearRef, followRef, ann, words, onEditNote, percent, immersive, onToggleImmersive }: ViewProps) {
   const pg = usePagination({
     chapter: ch.chapter,
     settings,
@@ -34,6 +34,8 @@ export function ReadingView({ book, settings, ch, clearRef, ann, words, onEditNo
   const selection = useSelection({ book, chapter: ch.chapter, settings, rootRef: pg.pagesRef, savedIndex: words.index });
   useSavedMarks(pg.pagesRef, ch.chapter, words.index, pg.dims);
   clearRef.current = selection.clear;
+  // הקראה: מדפדפים לעמוד של המילה המוקראת
+  followRef.current = (el) => pg.showElement(el);
   const tr = useSentenceTranslations(book, ch.chapterIdx, settings);
 
   // סימניות והערות: סימון קטן בתחילת המשפט (ב-DOM, בלי לרנדר מחדש את הפרק ובלי להזיז את העימוד)

@@ -92,6 +92,20 @@ export function usePagination({ chapter, settings, targetRef, onPageChange }: Op
     onPageChangeRef.current(anchor);
   }, []);
 
+  /** מדפדף לעמוד שבו האלמנט נמצא (למשל המילה המוקראת). לא עושה כלום אם הוא כבר גלוי */
+  const showElement = useCallback(
+    (el: HTMLElement) => {
+      const pages = pagesRef.current;
+      if (!pages || !dims) return;
+      const base = pages.getBoundingClientRect().left + settings.margin;
+      const rects = el.getClientRects();
+      if (!rects.length) return;
+      const p = pageOf(rects[0].left - base, dims.w);
+      if (p !== pageRef.current) goToPage(p);
+    },
+    [dims, settings.margin, goToPage],
+  );
+
   /** עמוד הבא בתוך הפרק; false אם זה העמוד האחרון */
   const nextPage = useCallback((): boolean => {
     if (pageRef.current >= pageCountRef.current - 1) return false;
@@ -120,5 +134,5 @@ export function usePagination({ chapter, settings, targetRef, onPageChange }: Op
       }
     : undefined;
 
-  return { viewportRef, pagesRef, dims, page, pageCount, anchorRef, nextPage, prevPage, pagesStyle };
+  return { viewportRef, pagesRef, dims, page, pageCount, anchorRef, nextPage, prevPage, showElement, pagesStyle };
 }

@@ -28,6 +28,10 @@ const PATHS = {
     </>
   ),
   trash: <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />,
+  play: <path d="M7 4.5v15l12-7.5z" />,
+  pause: <path d="M8 5v14M16 5v14" />,
+  skipBack: <path d="M18 5v14L8 12zM6 5v14" />,
+  skipForward: <path d="M6 5v14l10-7zM18 5v14" />,
   star: <path d="M12 3.8l2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z" />,
   plus: <path d="M12 5v14M5 12h14" />,
   search: (

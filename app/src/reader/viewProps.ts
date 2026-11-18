@@ -21,6 +21,8 @@ export interface ViewProps {
   words: WordsApi;
   /** פתיחת עורך ההערה למשפט */
   onEditNote: (sid: string, sentence: string, existing?: Annotation) => void;
+  /** המסך הפעיל רושם כאן איך להראות אלמנט שההקראה הגיעה אליו (דפדוף / גלילה) */
+  followRef: { current: (el: HTMLElement, newSentence: boolean) => void };
   /** אחוז מהספר (או null אם לא ידוע) */
   percent: number | null;
   /** מצב קריאה בלי סרגלים (נגיעה במרכז המסך מחליפה) */

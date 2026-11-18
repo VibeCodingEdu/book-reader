@@ -862,3 +862,22 @@ button.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
 :root[data-theme='eink'] .choice.dim { opacity: 1; border-style: dashed; }
 .export-row { align-items: center; gap: 12px; }
 .export-row button { display: inline-flex; align-items: center; gap: 8px; }
+
+/* ---------- הקראה (אבן דרך 4) ---------- */
+.tts-bar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--card); }
+.tts-bar.hidden { display: none; }
+.tts-play { min-width: 52px; width: 52px; min-height: 52px; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
+.tts-status { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
+.tts-time { font-variant-numeric: tabular-nums; color: var(--muted); }
+.tts-progress { display: block; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.tts-progress > span { display: block; height: 100%; background: var(--hl); transition: width 200ms; }
+.tts-rate { min-height: 44px; }
+.tts-msg { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.icon-btn.tts-on { color: var(--hl-text); }
+:root[data-theme='eink'] .tts-bar { background: #fff; border-bottom: 2px solid #000; }
+:root[data-theme='eink'] .tts-progress > span { background: #000; transition: none; }
+/* סימון המילה המוקראת: רקע בטלפון, מסגרת ב-E-ink (בלי צבע) */
+.w.tts-now { background: color-mix(in srgb, var(--hl) 45%, transparent); border-radius: 3px; }
+[data-sid].tts-sent { background: color-mix(in srgb, var(--hl) 10%, transparent); border-radius: 3px; }
+:root[data-theme='eink'] .w.tts-now { background: none; outline: 2px solid #000; outline-offset: 1px; }
+:root[data-theme='eink'] [data-sid].tts-sent { background: none; }

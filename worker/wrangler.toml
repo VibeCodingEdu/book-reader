@@ -19,6 +19,11 @@ database_name = "book-reader"
 database_id = "__D1_DATABASE_ID__"
 migrations_dir = "migrations"
 
+# אחסון קובצי ההקראה (Google TTS). דורש הפעלת R2 בחשבון Cloudflare; הפריסה יוצרת את הדלי אם אינו קיים.
+[[r2_buckets]]
+binding = "AUDIO"
+bucket_name = "book-reader-audio"
+
 # סודות – לא כאן! הם נשמרים ב-GitHub (Settings → Secrets → Actions)
 # ותהליך הפריסה מעביר אותם ל-Cloudflare:
 #   PASSPHRASE, TOKEN_SECRET, ANTHROPIC_API_KEY, GEMINI_API_KEY
