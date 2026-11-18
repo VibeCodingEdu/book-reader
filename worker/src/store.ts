@@ -1,6 +1,7 @@
 // גישה למסד הנתונים (Cloudflare D1)
 
-import type { BookMeta, Chapter } from '../../shared/book';
+import type { Annotation } from '../../shared/annotations';
+import { wordsInChapter, type BookMeta, type Chapter } from '../../shared/book';
 import type { WordLookup } from '../../shared/translate';
 
 export async function listBooks(db: D1Database): Promise<BookMeta[]> {
@@ -174,4 +175,72 @@ export async function putChapterTranslations(
     )
     .bind(bookId, idx, engine, parserVersion, JSON.stringify(data), Date.now())
     .run();
+}
+
+// ---------- סימניות והערות ----------
+
+
+interface AnnotationRow {
+  id: string;
+  book_id: string;
+  kind: string;
+  sentence_id: string;
+  parser_version: number;
+  text: string;
+  excerpt: string;
+  created_at: number;
+  updated_at: number;
+  deleted: number;
+}
+
+const fromRow = (r: AnnotationRow): Annotation => ({
+  id: r.id,
+  bookId: r.book_id,
+  kind: r.kind as Annotation['kind'],
+  sentenceId: r.sentence_id,
+  parserVersion: r.parser_version,
+  text: r.text,
+  excerpt: r.excerpt,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+  deleted: !!r.deleted,
+});
+
+/** כל הרשומות של ספר, כולל מחוקות (כדי שמכשירים אחרים ידעו על המחיקה) */
+export async function listAnnotations(db: D1Database, bookId: string): Promise<Annotation[]> {
+  const { results } = await db.prepare('SELECT * FROM annotations WHERE book_id = ?').bind(bookId).all<AnnotationRow>();
+  return results.map(fromRow);
+}
+
+/** שמירה: רשומה חדשה נכנסת; קיימת מתעדכנת רק אם הגרסה שהגיעה חדשה יותר (או מחיקה בשוויון) */
+export async function upsertAnnotations(db: D1Database, items: Annotation[]): Promise<void> {
+  if (!items.length) return;
+  await db.batch(
+    items.map((a) =>
+      db
+        .prepare(
+          `INSERT INTO annotations (id, book_id, kind, sentence_id, parser_version, text, excerpt, created_at, updated_at, deleted)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             kind = excluded.kind, sentence_id = excluded.sentence_id, parser_version = excluded.parser_version,
+             text = excluded.text, excerpt = excluded.excerpt, updated_at = excluded.updated_at, deleted = excluded.deleted
+           WHERE excluded.updated_at > annotations.updated_at
+              OR (excluded.updated_at = annotations.updated_at AND excluded.deleted = 1)`,
+        )
+        .bind(a.id, a.bookId, a.kind, a.sentenceId, a.parserVersion, a.text, a.excerpt, a.createdAt, a.updatedAt, a.deleted ? 1 : 0),
+    ),
+  );
+}
+
+/** ספר ישן בלי מספר מילים לכל פרק – מחשבים פעם אחת מהפרקים ושומרים */
+export async function ensureChapterWords(db: D1Database, meta: BookMeta): Promise<BookMeta> {
+  if (meta.chapterWords?.length === meta.chapterCount) return meta;
+  const words: number[] = [];
+  for (let i = 0; i < meta.chapterCount; i++) {
+    const ch = await getChapter(db, meta.id, i);
+    words.push(ch ? wordsInChapter(ch) : 0);
+  }
+  const updated = { ...meta, chapterWords: words };
+  await db.prepare('UPDATE books SET meta = ? WHERE id = ?').bind(JSON.stringify(updated), meta.id).run();
+  return updated;
 }

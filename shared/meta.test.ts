@@ -20,6 +20,7 @@ const full: Required<BookMeta> = {
   chapterCount: 2,
   wordCount: 7,
   chapterTitles: ['Chapter 1', 'Chapter 2'],
+  chapterWords: [5, 2],
 };
 
 describe('normalizeMeta', () => {

@@ -39,9 +39,13 @@ interface Props {
   /** תרגום כל המשפט של המילה שנלחצה (אם יש) */
   sentenceTr?: SentenceTr;
   onTranslateSentence?: () => void;
+  /** סימנייה / הערה על המשפט של המילה */
+  sentenceMarks?: { bookmarked: boolean; hasNote: boolean };
+  onToggleBookmark?: () => void;
+  onEditNote?: () => void;
 }
 
-export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSentence }: Props) {
+export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSentence, sentenceMarks, onToggleBookmark, onEditNote }: Props) {
   const speaking = useSpeakingKey();
   const heading =
     sel.kind === 'range' ? sel.text : sel.kind === 'word' && sel.state === 'done' ? sel.result.unit : sel.word;
@@ -108,6 +112,17 @@ export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSe
               {sentenceTr.text}
             </p>
           )}
+        </div>
+      )}
+
+      {sel.kind === 'word' && onToggleBookmark && onEditNote && (
+        <div class="row sheet-ann">
+          <button class="secondary" aria-pressed={!!sentenceMarks?.bookmarked} onClick={onToggleBookmark}>
+            🔖 {sentenceMarks?.bookmarked ? 'הסרת הסימנייה' : 'סימנייה למשפט'}
+          </button>
+          <button class="secondary" aria-pressed={!!sentenceMarks?.hasNote} onClick={onEditNote}>
+            ✏️ {sentenceMarks?.hasNote ? 'עריכת ההערה' : 'הערה למשפט'}
+          </button>
         </div>
       )}
 

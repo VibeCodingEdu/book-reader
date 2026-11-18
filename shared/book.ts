@@ -21,6 +21,8 @@ export interface BookMeta {
   chapterCount: number;
   wordCount: number;
   chapterTitles: string[];
+  /** מספר המילים בכל פרק – לחישוב התקדמות (ספרים ישנים מקבלים אותו בפתיחה הראשונה) */
+  chapterWords?: number[];
 }
 
 export interface Chapter {
@@ -42,10 +44,14 @@ export type MetaInput = Omit<BookMeta, 'chapterCount' | 'chapterTitles' | 'wordC
 const clip = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const optional = (v: unknown, max: number): string | undefined => clip(v, max) || undefined;
 
-export function countChapterWords(chapters: Chapter[]): number {
+export function wordsInChapter(ch: Chapter): number {
   let n = 0;
-  for (const ch of chapters) for (const p of ch.paragraphs) for (const s of p) n += countWords(s);
+  for (const p of ch.paragraphs) for (const s of p) n += countWords(s);
   return n;
+}
+
+export function countChapterWords(chapters: Chapter[]): number {
+  return chapters.reduce((n, ch) => n + wordsInChapter(ch), 0);
 }
 
 /**
@@ -69,6 +75,7 @@ export function normalizeMeta(input: MetaInput, chapters: Chapter[]): BookMeta {
     chapterCount: chapters.length,
     wordCount: countChapterWords(chapters),
     chapterTitles: chapters.map((c) => clip(c.title, 200)),
+    chapterWords: chapters.map(wordsInChapter),
   };
   // שדות אופציונליים ריקים לא נשמרים
   return Object.fromEntries(Object.entries(all).filter(([, v]) => v !== undefined)) as unknown as BookMeta;

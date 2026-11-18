@@ -1,3 +1,4 @@
+import type { Annotation } from '../../shared/annotations';
 import type { BookMeta, Chapter } from '../../shared/book';
 import type {
   ChapterTranslateRequest,
@@ -196,6 +197,14 @@ export const translateChapter = (req: ChapterTranslateRequest) =>
 /** תרגום משפט בודד */
 export const translateSentence = (req: SentenceTranslateRequest) =>
   request<SentenceTranslateResponse>('/api/translate/sentence', { method: 'POST', body: JSON.stringify(req) });
+
+// ---------- סימניות והערות ----------
+
+export const getAnnotations = (bookId: string) =>
+  request<{ items: Annotation[] }>(`/api/annotations?bookId=${encodeURIComponent(bookId)}`).then((r) => r.items);
+
+export const putAnnotations = (items: Annotation[], keepalive = false) =>
+  request('/api/annotations', { method: 'PUT', body: JSON.stringify({ items }), keepalive });
 
 export interface Spend {
   month: string;

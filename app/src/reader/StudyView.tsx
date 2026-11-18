@@ -2,7 +2,7 @@
 // כפתורי ▲/▼ שמזיזים מסך שלם בבת אחת (בלי תנועה). בשלב 2 יתווסף תרגום משפט ותרגום
 // מקביל, ובשלב 3 סימניות והערות – לשורה כבר יש מקום לכפתורים שלהם.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { sentenceId } from '../../../shared/book';
 import { stopSpeaking, toggleSpeak, useSpeakingKey } from '../speech';
 import { WordSheet } from '../WordSheet';
@@ -16,12 +16,13 @@ import type { ViewProps } from './viewProps';
 const PARALLEL_NEXT: Record<ParallelMode, ParallelMode> = { off: 'show', show: 'hide', hide: 'off' };
 const PARALLEL_LABEL: Record<ParallelMode, string> = { off: 'כבוי', show: 'גלוי', hide: 'מוסתר' };
 
-export function StudyView({ book, settings, ch, clearRef, onPatchSettings }: ViewProps) {
+export function StudyView({ book, settings, ch, clearRef, onPatchSettings, ann, onEditNote, percent }: ViewProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const selection = useSelection({ book, chapter: ch.chapter, settings, rootRef: listRef });
   clearRef.current = selection.clear;
   const { chapter, chapterIdx, error } = ch;
   const speaking = useSpeakingKey();
+  const marks = useMemo(() => ann.marksFor(chapterIdx, chapter), [ann.marksFor, chapterIdx, chapter]);
   // יציאה ממצב לימוד או מעבר פרק – עוצרים השמעה של משפט
   useEffect(() => () => stopSpeaking(), [chapterIdx]);
 
@@ -97,7 +98,7 @@ export function StudyView({ book, settings, ch, clearRef, onPatchSettings }: Vie
     if (!id || id === topRef.current) return;
     topRef.current = id;
     ch.targetRef.current = { anchor: id }; // מעבר למצב קריאה ייפתח על המשפט הזה
-    ch.saver.save(id);
+    ch.savePosition(id);
   };
 
   // גלילה: עדכון העוגן לכל היותר פעם ב-100ms. טיימר רגיל ולא requestAnimationFrame,
@@ -148,6 +149,17 @@ export function StudyView({ book, settings, ch, clearRef, onPatchSettings }: Vie
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+
+  /** כפתורי סימנייה/הערה בבועה של מילה – על המשפט שלה */
+  const sheetAnnProps = (sel: typeof selection.sel) => {
+    if (!sel || sel.kind !== 'word') return {};
+    const m = marks.get(sel.sid);
+    return {
+      sentenceMarks: { bookmarked: !!m?.bookmark, hasNote: !!m?.note },
+      onToggleBookmark: () => ann.toggleBookmark(sel.sid, sel.sentence, m?.bookmark),
+      onEditNote: () => onEditNote(sel.sid, sel.sentence, m?.note),
+    };
+  };
 
   const onClick = (e: MouseEvent) => {
     if ((e.target as HTMLElement).closest('.study-actions, .study-tr, .study-tr-hidden')) return;
@@ -213,6 +225,22 @@ export function StudyView({ book, settings, ch, clearRef, onPatchSettings }: Vie
                           >
                             {speaking === sid ? '⏹' : '🔊'}
                           </button>
+                          <button
+                            class="icon-btn"
+                            aria-label={marks.get(sid)?.bookmark ? 'הסרת הסימנייה' : 'סימנייה'}
+                            aria-pressed={!!marks.get(sid)?.bookmark}
+                            onClick={() => ann.toggleBookmark(sid, text, marks.get(sid)?.bookmark)}
+                          >
+                            🔖
+                          </button>
+                          <button
+                            class="icon-btn"
+                            aria-label={marks.get(sid)?.note ? 'הערה (יש)' : 'הוספת הערה'}
+                            aria-pressed={!!marks.get(sid)?.note}
+                            onClick={() => onEditNote(sid, text, marks.get(sid)?.note)}
+                          >
+                            ✏️
+                          </button>
                         </div>
                       </div>
                       <TranslationLine
@@ -245,6 +273,7 @@ export function StudyView({ book, settings, ch, clearRef, onPatchSettings }: Vie
         <div class="progress">
           <span class="progress-chapter" dir="auto">
             {chapterTitle}
+            {percent !== null && ` · ${percent}%`}
           </span>
           <button
             class="parallel-btn"
@@ -275,6 +304,7 @@ export function StudyView({ book, settings, ch, clearRef, onPatchSettings }: Vie
           onTranslate={selection.translateNow}
           sentenceTr={selection.sel.kind === 'word' ? tr.get(selection.sel.sid) : undefined}
           onTranslateSentence={selection.sel.kind === 'word' ? () => tr.translateOne((selection.sel as { sid: string }).sid) : undefined}
+          {...sheetAnnProps(selection.sel)}
         />
       )}
     </>

@@ -6,6 +6,16 @@ import { loadLocalPosition } from './position';
 import { ACCEPT, uploadFile } from './upload';
 
 type MySort = 'recent' | 'title' | 'level';
+
+/** אחוז הקריאה שנשמר בפעם האחרונה שהספר היה פתוח */
+function readPercent(bookId: string): number | null {
+  try {
+    const v = localStorage.getItem(`reader.progress.${bookId}`);
+    return v === null ? null : Number(v);
+  } catch {
+    return null;
+  }
+}
 const SORT_KEY = 'reader.librarySort';
 
 // ספרים קלים יחסית ברשות הציבור, לפי רמה (הערכה גסה; אלה גרסאות מקוריות, לא מפושטות).
@@ -167,6 +177,7 @@ export function Library({ onOpen, onOpenSettings, onOpenCatalog }: Props) {
                   <span class="book-meta">
                     {b.chapterCount} פרקים · {Math.round(b.wordCount / 1000)} אלף מילים
                     {ch !== undefined && ` · הגעת לפרק ${ch + 1}`}
+                    {readPercent(b.id) !== null && ` · ${readPercent(b.id)}% נקרא`}
                   </span>
                 </button>
                 <button

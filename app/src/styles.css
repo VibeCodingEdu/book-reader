@@ -406,3 +406,61 @@ label.btn { margin: 0; }
 .sheet-sentence { margin-top: 10px; }
 .sentence-btn { width: 100%; }
 .sheet-sentence-tr { margin: 0; font-size: 1.05rem; line-height: 1.5; }
+
+/* ---------- סימניות, הערות, תוכן עניינים ---------- */
+.study-actions { display: grid; grid-template-columns: repeat(2, 36px); gap: 2px; }
+.study-actions .icon-btn { min-width: 36px; min-height: 36px; padding: 0; font-size: 0.95rem; }
+:root[data-theme='eink'] .study-actions { grid-template-columns: repeat(2, 44px); }
+:root[data-theme='eink'] .study-actions .icon-btn { min-width: 44px; min-height: 44px; }
+.study-actions .icon-btn[aria-pressed='true'] { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); }
+:root[data-theme='eink'] .study-actions .icon-btn[aria-pressed='true'] { background: #000; filter: invert(1); border-color: #000; }
+
+/* מצב קריאה: סימן קטן בתחילת משפט עם סימנייה/הערה – מיקום מוחלט, לא מזיז את העמודים */
+.pages [data-sid].has-bm, .pages [data-sid].has-note { position: relative; }
+.pages [data-sid].has-bm::before, .pages [data-sid].has-note::before {
+  /* בתוך הרווח שבין השורות, מעל תחילת המשפט – לא תופס מקום ולא משנה את חלוקת העמודים */
+  position: absolute; left: -0.6em; top: -0.95em; font-size: 0.55em; line-height: 1; pointer-events: none;
+}
+.pages [data-sid].has-bm::before { content: '🔖'; }
+.pages [data-sid].has-note::before { content: '✏️'; }
+.pages [data-sid].has-bm.has-note::before { content: '🔖✏️'; left: -1.2em; }
+:root[data-theme='eink'] .pages [data-sid].has-bm::before { content: '■'; font-size: 0.7em; }
+:root[data-theme='eink'] .pages [data-sid].has-note::before { content: '✎'; font-size: 0.8em; }
+:root[data-theme='eink'] .pages [data-sid].has-bm.has-note::before { content: '■✎'; left: -1em; }
+
+.sheet-ann { margin-top: 10px; gap: 8px; }
+.sheet-ann button { flex: 1; font-size: 0.9rem; }
+.sheet-ann button[aria-pressed='true'] { background: var(--accent); color: var(--accent-fg); }
+
+.toc-btn {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+  background: transparent; color: var(--fg); border-color: var(--line); font-weight: 500;
+}
+.toc-btn-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; }
+:root[data-theme='eink'] .toc-btn { border-color: #000; }
+.sheet.toc { z-index: 31; max-height: 85vh; }
+.segmented.three { grid-template-columns: repeat(3, 1fr); margin: 10px 0; }
+.toc-list { list-style: none; padding: 0; margin: 0; }
+.toc-row {
+  width: 100%; display: flex; align-items: center; gap: 8px; text-align: start; font-weight: 400;
+  background: transparent; color: var(--fg); border: none; border-bottom: 1px solid var(--line); border-radius: 0; padding: 10px 4px;
+}
+.toc-row.current { font-weight: 700; }
+.toc-title { flex: 1; min-width: 0; }
+.toc-state { flex: none; font-size: 0.85rem; color: var(--muted); }
+.toc-ann { display: flex; align-items: stretch; border-bottom: 1px solid var(--line); }
+.toc-ann .toc-row { border-bottom: none; flex: 1; }
+.toc-ann-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.toc-note { font-weight: 600; }
+.toc-excerpt { font-size: 0.9rem; color: var(--muted); }
+.toc-ann-actions { display: flex; align-items: center; }
+.toc-empty { padding: 16px 4px; }
+:root[data-theme='eink'] .toc-row, :root[data-theme='eink'] .toc-ann { border-color: #000; }
+
+.sheet.note-editor { z-index: 32; }
+.note-sentence { font-size: 0.95rem; color: var(--muted); margin: 6px 0 10px; text-align: left; }
+.note-editor textarea {
+  width: 100%; min-height: 120px; padding: 10px; font: inherit; color: var(--fg); background: var(--bg);
+  border: var(--border-w) solid var(--line); border-radius: 8px; resize: vertical;
+}
+.note-actions { margin-top: 10px; gap: 8px; }

@@ -14,6 +14,8 @@ export function useBookChapter(book: BookMeta, onLoadStart: () => void) {
   const [chapterIdx, setChapterIdx] = useState<number | null>(null);
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** המשפט הנוכחי (לחישוב התקדמות) */
+  const [posSid, setPosSid] = useState<string | null>(null);
 
   // גם ב-ref: לחיצות מהירות ברצף לא יקראו ערך ישן
   const chapterIdxRef = useRef<number | null>(null);
@@ -24,6 +26,14 @@ export function useBookChapter(book: BookMeta, onLoadStart: () => void) {
 
   const saver = useMemo(() => createPositionSaver(book.id), [book.id]);
   useEffect(() => () => saver.dispose(), [saver]);
+  /** שמירת מיקום (מקומית מיד, לשרת בהשהיה) ועדכון ההתקדמות המוצגת */
+  const savePosition = useCallback(
+    (sid: string) => {
+      saver.save(sid);
+      setPosSid(sid);
+    },
+    [saver],
+  );
 
   const loadChapter = useCallback(
     async (idx: number, target: Target) => {
@@ -54,6 +64,7 @@ export function useBookChapter(book: BookMeta, onLoadStart: () => void) {
       if (cancelled) return;
       const parsed = pos ? parseSentenceId(pos.sentenceId) : null;
       const idx = parsed && parsed.c < book.chapterCount ? parsed.c : 0;
+      if (parsed) setPosSid(pos!.sentenceId);
       loadChapter(idx, { anchor: parsed ? pos!.sentenceId : null });
     });
     return () => {
@@ -65,10 +76,21 @@ export function useBookChapter(book: BookMeta, onLoadStart: () => void) {
   const jumpToChapter = useCallback(
     (idx: number) => {
       const first = sentenceId(idx, 0, 0);
-      saver.save(first);
+      savePosition(first);
       loadChapter(idx, { anchor: first });
     },
-    [saver, loadChapter],
+    [savePosition, loadChapter],
+  );
+
+  /** קפיצה למשפט (מתוכן העניינים: סימנייה או הערה) */
+  const jumpToSentence = useCallback(
+    (sid: string) => {
+      const pos = parseSentenceId(sid);
+      if (!pos || pos.c >= book.chapterCount) return;
+      savePosition(sid);
+      loadChapter(pos.c, { anchor: sid });
+    },
+    [savePosition, loadChapter, book.chapterCount],
   );
 
   /** לפרק הבא; false אם אין (או שפרק עדיין נטען) */
@@ -100,6 +122,8 @@ export function useBookChapter(book: BookMeta, onLoadStart: () => void) {
     prevChapterAtEnd,
     canNavigate,
     targetRef,
-    saver,
+    savePosition,
+    jumpToSentence,
+    posSid,
   };
 }

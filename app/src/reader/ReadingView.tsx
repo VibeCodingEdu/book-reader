@@ -1,6 +1,6 @@
 // מצב קריאה (עמודים): עימוד, החלקה, נגיעה בשוליים ומקלדת, מעל החלקים המשותפים.
 
-import { useCallback, useEffect, useRef } from 'preact/hooks';
+import { useCallback, useEffect, useMemo, useRef } from 'preact/hooks';
 import { WordSheet } from '../WordSheet';
 import { ChapterText } from './SentenceText';
 import type { ViewProps } from './viewProps';
@@ -8,19 +8,32 @@ import { usePagination } from './usePagination';
 import { useSelection } from './useSelection';
 import { useSentenceTranslations } from './useSentenceTranslations';
 
-export function ReadingView({ book, settings, ch, clearRef }: ViewProps) {
+export function ReadingView({ book, settings, ch, clearRef, ann, onEditNote, percent }: ViewProps) {
   const pg = usePagination({
     chapter: ch.chapter,
     settings,
     targetRef: ch.targetRef,
     onPageChange: (anchor) => {
       clearRef.current();
-      if (anchor) ch.saver.save(anchor);
+      if (anchor) ch.savePosition(anchor);
     },
   });
   const selection = useSelection({ book, chapter: ch.chapter, settings, rootRef: pg.pagesRef });
   clearRef.current = selection.clear;
   const tr = useSentenceTranslations(book, ch.chapterIdx, settings);
+
+  // סימניות והערות: סימון קטן בתחילת המשפט (ב-DOM, בלי לרנדר מחדש את הפרק ובלי להזיז את העימוד)
+  const marks = useMemo(() => ann.marksFor(ch.chapterIdx, ch.chapter), [ann.marksFor, ch.chapterIdx, ch.chapter]);
+  useEffect(() => {
+    const el = pg.pagesRef.current;
+    if (!el) return;
+    el.querySelectorAll('[data-sid].has-bm, [data-sid].has-note').forEach((n) => n.classList.remove('has-bm', 'has-note'));
+    for (const [sid, m] of marks) {
+      const s = el.querySelector(`[data-sid="${sid}"]`);
+      if (m.bookmark) s?.classList.add('has-bm');
+      if (m.note) s?.classList.add('has-note');
+    }
+  }, [marks, ch.chapter, pg.dims]);
 
   // ---------- דפדוף ----------
   const next = useCallback(() => {
@@ -131,6 +144,7 @@ export function ReadingView({ book, settings, ch, clearRef }: ViewProps) {
           </span>
           <span>
             עמוד {pg.page + 1} מתוך {pg.pageCount} · פרק {(chapterIdx ?? 0) + 1}/{book.chapterCount}
+            {percent !== null && ` · ${percent}%`}
           </span>
         </div>
         <button class="nav-btn" onClick={next} aria-label="עמוד הבא">
@@ -145,6 +159,17 @@ export function ReadingView({ book, settings, ch, clearRef }: ViewProps) {
           onTranslate={selection.translateNow}
           sentenceTr={selection.sel.kind === 'word' ? tr.get(selection.sel.sid) : undefined}
           onTranslateSentence={selection.sel.kind === 'word' ? () => tr.translateOne((selection.sel as { sid: string }).sid) : undefined}
+          {...(selection.sel.kind === 'word'
+            ? (() => {
+                const sel = selection.sel;
+                const m = marks.get(sel.sid);
+                return {
+                  sentenceMarks: { bookmarked: !!m?.bookmark, hasNote: !!m?.note },
+                  onToggleBookmark: () => ann.toggleBookmark(sel.sid, sel.sentence, m?.bookmark),
+                  onEditNote: () => onEditNote(sel.sid, sel.sentence, m?.note),
+                };
+              })()
+            : {})}
         />
       )}
     </>

@@ -1,5 +1,7 @@
 import type { BookMeta } from '../../../shared/book';
 import type { DeviceSettings } from '../deviceSettings';
+import type { Annotation } from '../../../shared/annotations';
+import type { AnnotationsApi } from './useAnnotations';
 import type { useBookChapter } from './useBookChapter';
 
 /** מה שהמעטפת (Reader) מעבירה לכל אחד מהמסכים: קריאה ולימוד */
@@ -12,4 +14,10 @@ export interface ViewProps {
   clearRef: { current: () => void };
   /** שינוי הגדרות המכשיר מתוך המסך (למשל מצב התרגום המקביל) */
   onPatchSettings: (patch: Partial<DeviceSettings>) => void;
+  /** סימניות והערות של הספר */
+  ann: AnnotationsApi;
+  /** פתיחת עורך ההערה למשפט */
+  onEditNote: (sid: string, sentence: string, existing?: Annotation) => void;
+  /** אחוז מהספר (או null אם לא ידוע) */
+  percent: number | null;
 }

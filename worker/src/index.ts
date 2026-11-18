@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
+import { validateAnnotation, type Annotation } from '../../shared/annotations';
 import { normalizeMeta, parseSentenceId, parserVersionOf, sentenceId, type BookMeta, type Chapter } from '../../shared/book';
 import type {
   ChapterTranslateRequest,
@@ -100,7 +101,11 @@ app.get('/api/gutenberg/search', async (c) => {
   }
 });
 
-app.get('/api/books', async (c) => c.json({ books: await store.listBooks(c.env.DB) }));
+app.get('/api/books', async (c) => {
+  // ספרים ישנים מקבלים כאן (פעם אחת) מספר מילים לכל פרק, לחישוב התקדמות
+  const books = await Promise.all((await store.listBooks(c.env.DB)).map((b) => store.ensureChapterWords(c.env.DB, b)));
+  return c.json({ books });
+});
 
 app.post('/api/books/import', async (c) => {
   const body = await c.req.json<{ gutenbergId?: number; title?: string; author?: string }>();
@@ -141,7 +146,7 @@ app.get('/api/external', async (c) => {
 
 app.get('/api/books/:id', async (c) => {
   const book = await store.getBook(c.env.DB, c.req.param('id'));
-  return book ? c.json({ book }) : c.json({ error: 'הספר לא נמצא' }, 404);
+  return book ? c.json({ book: await store.ensureChapterWords(c.env.DB, book) }) : c.json({ error: 'הספר לא נמצא' }, 404);
 });
 
 app.delete('/api/books/:id', async (c) => {
@@ -378,6 +383,26 @@ app.post('/api/translate/sentence', async (c) => {
   if (!translation) return c.json({ error: 'המנוע לא החזיר תרגום' }, 502);
   await store.putCachedLookup(c.env.DB, key, engineId, { translation } as never);
   return c.json({ translation, engine: engineId, cached: false } satisfies SentenceTranslateResponse);
+});
+
+// ---------- סימניות והערות ----------
+
+app.get('/api/annotations', async (c) => {
+  const bookId = c.req.query('bookId') ?? '';
+  if (!bookId) return c.json({ error: 'חסר ספר' }, 400);
+  return c.json({ items: await store.listAnnotations(c.env.DB, bookId) });
+});
+
+app.put('/api/annotations', async (c) => {
+  const body = await c.req.json<{ items?: unknown[] }>();
+  const items = Array.isArray(body.items) ? body.items : [];
+  if (items.length > 500) return c.json({ error: 'יותר מדי רשומות' }, 400);
+  for (const it of items) {
+    const err = validateAnnotation(it);
+    if (err) return c.json({ error: err }, 400);
+  }
+  await store.upsertAnnotations(c.env.DB, items as Annotation[]);
+  return c.json({ ok: true });
 });
 
 export default app;

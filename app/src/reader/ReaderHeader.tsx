@@ -12,11 +12,11 @@ interface Props {
   viewMode: ViewMode;
   onToggleMode: () => void;
   onBack: () => void;
-  onJumpToChapter: (idx: number) => void;
+  onOpenToc: () => void;
   onOpenSettings: () => void;
 }
 
-export function ReaderHeader({ book, chapterIdx, viewMode, onToggleMode, onBack, onJumpToChapter, onOpenSettings }: Props) {
+export function ReaderHeader({ book, chapterIdx, viewMode, onToggleMode, onBack, onOpenToc, onOpenSettings }: Props) {
   const [audioOpen, setAudioOpen] = useState(false);
   const [audioMounted, setAudioMounted] = useState(false);
 
@@ -26,19 +26,12 @@ export function ReaderHeader({ book, chapterIdx, viewMode, onToggleMode, onBack,
         <button class="icon-btn" onClick={onBack} aria-label="חזרה לספרייה">
           →
         </button>
-        <select
-          class="chapter-select"
-          dir="ltr"
-          aria-label="מעבר לפרק"
-          value={chapterIdx ?? 0}
-          onChange={(e) => onJumpToChapter(Number(e.currentTarget.value))}
-        >
-          {book.chapterTitles.map((t, i) => (
-            <option key={i} value={i}>
-              {t}
-            </option>
-          ))}
-        </select>
+        <button class="toc-btn" onClick={onOpenToc} aria-label="תוכן עניינים, סימניות והערות">
+          <span aria-hidden="true">☰</span>
+          <span class="toc-btn-title" dir="auto">
+            {chapterIdx !== null ? book.chapterTitles[chapterIdx] : ''}
+          </span>
+        </button>
         <button
           class="icon-btn"
           onClick={onToggleMode}
