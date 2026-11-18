@@ -226,7 +226,42 @@ app.put('/api/settings', async (c) => {
 // ---------- תרגום ----------
 app.get('/api/spend', async (c) => {
   const cap = Number(c.env.MONTHLY_CAP_USD ?? '5');
-  return c.json({ month: store.currentMonth(), cap, ...(await store.monthSpend(c.env.DB)) });
+  const ttsLimit = Number(c.env.TTS_MONTHLY_CHARS ?? DEFAULT_TTS_MONTHLY_CHARS);
+  return c.json({ month: store.currentMonth(), cap, ttsLimit, ...(await store.monthSpend(c.env.DB)) });
+});
+
+/**
+ * פירוט ההוצאה החודשית: אילו פרקים תורגמו (תרגום מקביל מתרגם פרק שלם) וכמה תווים כל אחד.
+ * התווים של פרק מחושבים מהטקסט המקורי של המשפטים שתורגמו, ולכן הם קרובים למה שנספר, לא זהים בהכרח.
+ */
+app.get('/api/spend/details', async (c) => {
+  const month = store.currentMonth();
+  const start = Date.parse(`${month}-01T00:00:00Z`);
+  const { results } = await c.env.DB.prepare(
+    'SELECT book_id, idx, engine, data, created_at FROM chapter_translations WHERE created_at >= ? ORDER BY created_at DESC LIMIT 200',
+  )
+    .bind(start)
+    .all<{ book_id: string; idx: number; engine: string; data: string; created_at: number }>();
+  const books = new Map<string, BookMeta | null>();
+  const chapters = [];
+  for (const r of results) {
+    if (!books.has(r.book_id)) books.set(r.book_id, await store.getBook(c.env.DB, r.book_id));
+    const book = books.get(r.book_id);
+    const chapter = book ? await store.getChapter(c.env.DB, r.book_id, r.idx) : null;
+    const sids = new Set(Object.keys(JSON.parse(r.data) as Record<string, string>));
+    const sentences = chapter ? chapterSentences(chapter, r.idx).filter((s) => sids.has(s.sid)) : [];
+    chapters.push({
+      bookId: r.book_id,
+      title: book?.title ?? r.book_id,
+      chapterIdx: r.idx,
+      chapterTitle: book?.chapterTitles[r.idx] ?? '',
+      engine: r.engine,
+      sentences: sids.size,
+      chars: countChars(sentences.map((s) => s.text)),
+      createdAt: r.created_at,
+    });
+  }
+  return c.json({ month, chapters });
 });
 
 app.post('/api/translate/word', async (c) => {

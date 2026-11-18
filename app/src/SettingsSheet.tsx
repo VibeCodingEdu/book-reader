@@ -4,6 +4,7 @@ import { getSpend, type Session, type Spend } from './api';
 import { collectDiagnostics } from './diagnostics';
 import type { DeviceSettings, FontFamily, Theme } from './deviceSettings';
 import { VoicePicker } from './VoicePicker';
+import { SpendDetails } from './SpendDetails';
 import { Icon } from './Icon';
 import { useSheetDrag } from './useSheetDrag';
 
@@ -187,6 +188,8 @@ export function SettingsSheet({ settings: s, session, onChange, onClose, onLogou
             )}
           </p>
         )}
+
+        {spend && <SpendDetails spend={spend} />}
 
         <details class="diag-details">
           <summary>בדיקת מכשיר</summary>

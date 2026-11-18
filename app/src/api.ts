@@ -311,7 +311,21 @@ export async function fetchTtsAudio(r: TtsChapterRef & { para: number; part: num
 export interface Spend {
   month: string;
   cap: number;
+  /** מכסת התווים החודשית להקראה */
+  ttsLimit?: number;
   total: number;
   byEngine: Record<string, { usd: number; calls: number; chars?: number }>;
 }
 export const getSpend = () => request<Spend>('/api/spend');
+
+export interface SpendChapter {
+  bookId: string;
+  title: string;
+  chapterIdx: number;
+  chapterTitle: string;
+  engine: string;
+  sentences: number;
+  chars: number;
+  createdAt: number;
+}
+export const getSpendDetails = () => request<{ month: string; chapters: SpendChapter[] }>('/api/spend/details');
