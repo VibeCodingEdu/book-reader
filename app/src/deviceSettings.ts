@@ -19,6 +19,7 @@ export interface DeviceSettings {
   parallel: ParallelMode;
   /** תרגול: כמה מילים חדשות להתחיל בכל יום */
   newPerDay: number;
+  practiceMode: PracticeMode;
   updatedAt: number;
 }
 
@@ -26,6 +27,9 @@ export type FontFamily = 'serif' | 'sans' | 'literata' | 'source-serif' | 'lexen
 export const FONT_FAMILIES: FontFamily[] = ['serif', 'sans', 'literata', 'source-serif', 'lexend'];
 export type ViewMode = 'read' | 'study';
 export type ParallelMode = 'off' | 'show' | 'hide';
+/** סוג התרגול: הצגת תשובה / הקלדה במשפט / מעברית לאנגלית */
+export type PracticeMode = 'reveal' | 'type' | 'heen';
+export const PRACTICE_MODES: PracticeMode[] = ['reveal', 'type', 'heen'];
 
 export const DEFAULT_SETTINGS: DeviceSettings = {
   theme: 'light',
@@ -38,6 +42,7 @@ export const DEFAULT_SETTINGS: DeviceSettings = {
   viewMode: 'read',
   parallel: 'off',
   newPerDay: 10,
+  practiceMode: 'reveal',
   updatedAt: 0,
 };
 
@@ -61,6 +66,7 @@ export function normalizeSettings(obj: Partial<DeviceSettings> | null | undefine
     viewMode: o.viewMode === 'study' ? 'study' : 'read',
     parallel: o.parallel === 'show' || o.parallel === 'hide' ? o.parallel : 'off',
     newPerDay: Number.isInteger(o.newPerDay) ? num(o.newPerDay, 0, 50, DEFAULT_SETTINGS.newPerDay) : DEFAULT_SETTINGS.newPerDay,
+    practiceMode: PRACTICE_MODES.includes(o.practiceMode as PracticeMode) ? (o.practiceMode as PracticeMode) : 'reveal',
     updatedAt: typeof o.updatedAt === 'number' ? o.updatedAt : 0,
   };
 }

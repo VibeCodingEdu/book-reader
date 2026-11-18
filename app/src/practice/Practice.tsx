@@ -1,14 +1,20 @@
-// מסך התרגול: המשפט המקורי עם רווח במקום המילה, רמז בעברית, "הצגת התשובה", ודירוג עצמי
-// (שוב / קשה / טוב / קל). FSRS קובע מתי כל מילה תחזור. בלי AI ובלי רשת (היומן מסונכרן ברקע).
+// מסך התרגול. שלושה מצבים (נבחרים בראש המסך ונשמרים בהגדרות המכשיר):
+//  • הצגה: משפט עם רווח + רמז בעברית; נזכרים בראש, חושפים ומדרגים.
+//  • הקלדה: אותו משפט, מקלידים את המילה (במקלדת, או בהכתבה של המקלדת) ומקבלים חיווי.
+//  • עברית ← אנגלית: רק המשמעות בעברית; מקלידים את המילה באנגלית.
+// בכל המצבים הדירוג (שוב / קשה / טוב / קל) נכנס לאותו יומן ולאותו FSRS.
+// אין AI ואין רשת (היומן מסונכרן ברקע).
 
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { ReviewRating } from '../../../shared/review';
 import type { SavedWord } from '../../../shared/words';
+import type { PracticeMode } from '../deviceSettings';
 import { Icon } from '../Icon';
 import { tokenize } from '../paging';
 import { unitOffsets } from '../savedWords';
 import { stopSpeaking } from '../speech';
 import { SpeakButton } from '../WordSheet';
+import { checkAnswer, suggestedRating, type Verdict } from './answer';
 import { formatInterval, previewIntervals } from './schedule';
 import { usePractice } from './usePractice';
 
@@ -21,6 +27,18 @@ const RATINGS: { r: ReviewRating; label: string; cls: string }[] = [
   { r: 3, label: 'טוב', cls: 'good' },
   { r: 4, label: 'קל', cls: 'easy' },
 ];
+
+const MODES: { id: PracticeMode; label: string }[] = [
+  { id: 'reveal', label: 'הצגה' },
+  { id: 'type', label: 'הקלדה' },
+  { id: 'heen', label: 'עברית ← אנגלית' },
+];
+
+const VERDICT: Record<Verdict, { icon: string; title: string; cls: string }> = {
+  correct: { icon: '✓', title: 'נכון!', cls: 'ok' },
+  close: { icon: '≈', title: 'כמעט – שגיאת כתיב', cls: 'near' },
+  wrong: { icon: '✗', title: 'לא נכון', cls: 'bad' },
+};
 
 /** המשפט: היחידה מוסתרת (רווח) עד שחושפים, ואז מודגשת */
 function Cloze({ w, revealed }: { w: SavedWord; revealed: boolean }) {
@@ -44,13 +62,28 @@ function Cloze({ w, revealed }: { w: SavedWord; revealed: boolean }) {
   );
 }
 
-export function Practice({ newPerDay, onBack }: { newPerDay: number; onBack: () => void }) {
+/** מה שנחשב נכון: בהקשר (משפט) – הצורה שבמשפט; בלי הקשר – גם צורת המילון */
+function accepted(w: SavedWord, inContext: boolean): { ok: string[]; near: string[] } {
+  const lemma = w.lemma && w.lemma.toLowerCase() !== w.unit.toLowerCase() ? [w.lemma] : [];
+  return inContext ? { ok: [w.unit], near: lemma } : { ok: [w.unit, ...lemma], near: [] };
+}
+
+export function Practice({ newPerDay, mode, onMode, onBack }: {
+  newPerDay: number;
+  mode: PracticeMode;
+  onMode: (m: PracticeMode) => void;
+  onBack: () => void;
+}) {
   const p = usePractice(newPerDay);
   /** סדר הסבב: נקבע פעם אחת כשהנתונים מוכנים; מילים בשלבי למידה חוזרות לסופו */
   const [order, setOrder] = useState<string[] | null>(null);
   const [revealed, setRevealed] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [done, setDone] = useState(0);
   const counts = useRef({ again: 0, total: 0 });
+  const inputRef = useRef<HTMLInputElement>(null);
+  const typing = mode !== 'reveal';
 
   useEffect(() => {
     if (order === null && p.ready) setOrder([...p.queue.due, ...p.queue.fresh].map((w) => w.id));
@@ -67,6 +100,30 @@ export function Practice({ newPerDay, onBack }: { newPerDay: number; onBack: () 
     [p.scheduler, wc, currentId],
   );
 
+  /** התשובה נחשפה: בהצגה – אחרי "הצגת התשובה"; בהקלדה – אחרי בדיקה */
+  const shown = typing ? verdict !== null : revealed;
+
+  // כרטיס חדש או מצב חדש: מאפסים, ובמצבי הקלדה מכוונים את הסמן לשדה (פותח את המקלדת)
+  useEffect(() => {
+    setRevealed(false);
+    setTyped('');
+    setVerdict(null);
+    if (typing) setTimeout(() => inputRef.current?.focus(), 50);
+  }, [currentId, mode]);
+
+  const check = () => {
+    if (!current || verdict) return;
+    const a = accepted(current, mode === 'type');
+    setVerdict(checkAnswer(typed, a.ok, a.near));
+    inputRef.current?.blur();
+  };
+  /** "לא זוכר": חושפים בלי לנחש, ומוצע "שוב" */
+  const giveUp = () => {
+    setTyped('');
+    setVerdict('wrong');
+    inputRef.current?.blur();
+  };
+
   const rate = (rating: ReviewRating) => {
     if (!current || !order) return;
     const next = p.rate(current, rating);
@@ -76,20 +133,24 @@ export function Practice({ newPerDay, onBack }: { newPerDay: number; onBack: () 
     if (next && next.due - Date.now() < IN_SESSION_MS) rest.push(current.id);
     else setDone((d) => d + 1);
     setOrder(rest);
-    setRevealed(false);
     stopSpeaking();
   };
 
-  // מקלדת (מחשב): רווח/Enter לחשיפה, 1–4 לדירוג
+  const suggested = verdict ? suggestedRating(verdict) : null;
+
+  // מקלדת (מחשב): בהצגה – רווח/Enter לחשיפה; אחרי חשיפה – 1–4 לדירוג, ו-Enter מאשר את המוצע
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
       if (!current) return;
-      if (!revealed && (e.key === ' ' || e.key === 'Enter')) {
+      if (!shown && !typing && (e.key === ' ' || e.key === 'Enter')) {
         e.preventDefault();
         setRevealed(true);
-      } else if (revealed && ['1', '2', '3', '4'].includes(e.key)) rate(Number(e.key) as ReviewRating);
-      else if (e.key === 'Escape') onBack();
+      } else if (shown && ['1', '2', '3', '4'].includes(e.key)) rate(Number(e.key) as ReviewRating);
+      else if (shown && e.key === 'Enter' && suggested) {
+        e.preventDefault();
+        rate(suggested);
+      } else if (e.key === 'Escape') onBack();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -110,6 +171,14 @@ export function Practice({ newPerDay, onBack }: { newPerDay: number; onBack: () 
             {done} הושלמו · {left} נשארו
           </span>
         )}
+      </div>
+
+      <div class="segmented practice-modes" role="group" aria-label="סוג התרגול">
+        {MODES.map((m) => (
+          <button key={m.id} aria-pressed={mode === m.id} onClick={() => onMode(m.id)}>
+            {m.label}
+          </button>
+        ))}
       </div>
 
       {!order && <p class="muted">טוען…</p>}
@@ -145,19 +214,83 @@ export function Practice({ newPerDay, onBack }: { newPerDay: number; onBack: () 
 
       {current && (
         <section class="card practice-card" key={current.id}>
-          <p class="practice-hint">
-            <span class="muted">רמז: </span>
-            {current.meaning}
-          </p>
-          <Cloze w={current} revealed={revealed} />
+          {mode === 'heen' ? (
+            <>
+              <p class="practice-ask">מהי המילה באנגלית?</p>
+              <p class="practice-meaning">{current.meaning}</p>
+              {current.pos && !shown && <p class="muted small">{current.pos}</p>}
+              {shown && <Cloze w={current} revealed />}
+            </>
+          ) : (
+            <>
+              <p class="practice-hint">
+                <span class="muted">רמז: </span>
+                {current.meaning}
+              </p>
+              <Cloze w={current} revealed={shown} />
+            </>
+          )}
           <p class="word-source">{current.bookTitle}</p>
 
-          {!revealed ? (
+          {typing && !verdict && (
+            <form
+              class="type-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                check();
+              }}
+            >
+              <input
+                ref={inputRef}
+                class="type-input en"
+                type="text"
+                lang="en"
+                dir="ltr"
+                value={typed}
+                onInput={(e) => setTyped(e.currentTarget.value)}
+                placeholder="הקלידו (או הכתיבו) את המילה"
+                aria-label="התשובה באנגלית"
+                autocapitalize="none"
+                autocomplete="off"
+                autocorrect="off"
+                spellcheck={false}
+                enterkeyhint="done"
+              />
+              <div class="row">
+                <button type="submit" class="check-btn" disabled={!typed.trim()}>
+                  בדיקה
+                </button>
+                <button type="button" class="secondary" onClick={giveUp}>
+                  לא זוכר
+                </button>
+              </div>
+            </form>
+          )}
+
+          {!typing && !revealed && (
             <button class="reveal-btn" onClick={() => setRevealed(true)}>
               הצגת התשובה
             </button>
-          ) : (
+          )}
+
+          {shown && (
             <div class="practice-answer reveal">
+              {typing && verdict && (
+                <div class={`verdict ${VERDICT[verdict].cls}`} role="status">
+                  <span class="verdict-icon" aria-hidden="true">
+                    {VERDICT[verdict].icon}
+                  </span>
+                  <span class="verdict-text">
+                    <strong>{VERDICT[verdict].title}</strong>
+                    {verdict !== 'correct' && typed.trim() && (
+                      <span class="verdict-typed">
+                        {' '}
+                        כתבתם: <span class="en" lang="en">{typed.trim()}</span>
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
               <div class="word-head">
                 <span class="word-unit en" lang="en">
                   {current.unit}
@@ -183,10 +316,10 @@ export function Practice({ newPerDay, onBack }: { newPerDay: number; onBack: () 
                   )}
                 </p>
               )}
-              <p class="muted small rate-q">כמה קל היה לזכור?</p>
+              <p class="muted small rate-q">{suggested ? 'הציון המוצע מסומן. אפשר לשנות:' : 'כמה קל היה לזכור?'}</p>
               <div class="rate-row" role="group" aria-label="דירוג">
                 {RATINGS.map(({ r, label, cls }) => (
-                  <button key={r} class={`rate-btn ${cls}`} onClick={() => rate(r)}>
+                  <button key={r} class={`rate-btn ${cls} ${suggested === r ? 'suggested' : ''}`} onClick={() => rate(r)}>
                     <span class="rate-label">{label}</span>
                     {intervals && <span class="rate-when">{formatInterval(intervals[r])}</span>}
                   </button>

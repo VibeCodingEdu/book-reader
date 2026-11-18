@@ -132,7 +132,12 @@ export function App() {
           onPatchSettings={(patch) => updateSettings({ ...settings, ...patch })}
         />
       ) : showPractice ? (
-        <Practice newPerDay={settings.newPerDay} onBack={() => setShowPractice(false)} />
+        <Practice
+          newPerDay={settings.newPerDay}
+          mode={settings.practiceMode}
+          onMode={(practiceMode) => updateSettings({ ...settings, practiceMode })}
+          onBack={() => setShowPractice(false)}
+        />
       ) : showWords ? (
         <Words onBack={() => setShowWords(false)} onPractice={() => setShowPractice(true)} onOpenSentence={openSentence} />
       ) : catalog ? (
