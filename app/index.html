@@ -9,9 +9,48 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icon-180.png" />
+    <style>
+      /* מסך פתיחה: מוצג עד שהאפליקציה עולה. הצבעים לפי ערכת הצבע השמורה (הסקריפט למטה) */
+      :root { --s-bg: #fbfaf7; --s-fg: #1d1b18; --s-ac: #9a4a22; }
+      :root[data-theme='dark'] { --s-bg: #16130f; --s-fg: #ebe3d5; --s-ac: #e39a68; }
+      :root[data-theme='sepia'] { --s-bg: #f3ebdd; --s-fg: #3a2e22; --s-ac: #94441d; }
+      :root[data-theme='eink'] { --s-bg: #ffffff; --s-fg: #000000; --s-ac: #000000; }
+      html { background: var(--s-bg); }
+      #splash {
+        position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 16px; background: var(--s-bg); color: var(--s-fg); transition: opacity 300ms ease;
+      }
+      #splash.gone { opacity: 0; pointer-events: none; }
+      :root[data-theme='eink'] #splash { transition: none; }
+      #splash svg { width: 92px; height: 92px; animation: splash-in 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+      #splash .name { font: 700 2.3rem/1 'Frank Ruhl Libre', 'Iowan Old Style', Georgia, serif; animation: splash-in 500ms 80ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+      @keyframes splash-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+      @media (prefers-reduced-motion: reduce) { #splash svg, #splash .name { animation: none; } }
+      :root[data-theme='eink'] #splash svg, :root[data-theme='eink'] #splash .name { animation: none; }
+    </style>
+    <script>
+      // ערכת הצבע לפני הציור הראשון – בלי הבזק לבן בלילה
+      try {
+        var t = (JSON.parse(localStorage.getItem('reader.deviceSettings.v1') || '{}').theme) || 'light';
+        if (t === 'auto') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
     <title>חדר קריאה</title>
   </head>
   <body>
+    <div id="splash" aria-hidden="true">
+      <svg viewBox="0 0 64 64">
+        <g fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 54V33a21 21 0 0 1 42 0v21" />
+          <path d="M6.5 54h51" />
+          <path d="M32 12v26.5" />
+          <path d="M32 38.5c-4.2-2.5-9.6-3.1-15-2.2v14.9c5.4-.9 10.8-.3 15 2.2M32 38.5c4.2-2.5 9.6-3.1 15-2.2v14.9c-5.4-.9-10.8-.3-15 2.2M32 38.5v14.9" />
+        </g>
+        <path d="M36 50.6h4v10.2l-2-1.8-2 1.8z" fill="var(--s-ac)" />
+      </svg>
+      <div class="name">חדר קריאה</div>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

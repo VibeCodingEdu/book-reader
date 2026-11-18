@@ -14,6 +14,7 @@ import { loadSettings, normalizeSettings, saveSettings, type DeviceSettings } fr
 import { Catalog } from './Catalog';
 import { Library } from './Library';
 import { Reader } from './Reader';
+import { Brand } from './Logo';
 import { SettingsSheet } from './SettingsSheet';
 
 function guessDeviceName(): string {
@@ -31,6 +32,15 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => setUnauthorizedHandler(() => setSession(null)), []);
+
+  // מסך הפתיחה (ב-index.html) נעלם אחרי הרינדור הראשון
+  useEffect(() => {
+    const splash = document.getElementById('splash');
+    if (!splash) return;
+    splash.classList.add('gone');
+    const t = setTimeout(() => splash.remove(), 400);
+    return () => clearTimeout(t);
+  }, []);
 
   // ערכת הצבע חלה על כל הדף. "אוטו" = יום/לילה לפי המכשיר, ומתעדכן כשהמכשיר מתחלף.
   useEffect(() => {
@@ -124,8 +134,8 @@ function LoginScreen({ onDone }: { onDone: (s: Session) => void }) {
 
   return (
     <main class="page">
-      <h1>חדר קריאה</h1>
-      <section class="card">
+      <Brand size="lg" tagline />
+      <section class="card login-card">
         <h2>התחברות</h2>
         <form
           onSubmit={async (e) => {

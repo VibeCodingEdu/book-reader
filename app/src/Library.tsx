@@ -4,6 +4,7 @@ import { deleteBook, friendlyError, importBook, listBooks, searchGutenberg, type
 import { levelRank } from './levels';
 import { Cover } from './Cover';
 import { Icon } from './Icon';
+import { Brand } from './Logo';
 import { loadLocalPosition } from './position';
 import { ACCEPT, uploadFile } from './upload';
 
@@ -292,7 +293,7 @@ export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog }: Pro
   return (
     <main class="page library">
       <div class="row top-row">
-        <h1>חדר קריאה</h1>
+        <Brand />
         <span class="spacer" />
         <button class="icon-btn" onClick={() => setAddOpen(!addOpen)} aria-expanded={addOpen} aria-label="הוספת ספר">
           <Icon name="plus" />

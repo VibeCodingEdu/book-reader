@@ -1,5 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#ffffff"/>
-  <path d="M96 128c64-24 112-16 160 16v256c-48-32-96-40-160-16z" fill="none" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
-  <path d="M416 128c-64-24-112-16-160 16v256c48-32 96-40 160-16z" fill="none" stroke="#000" stroke-width="28" stroke-linejoin="round"/>
+  <!-- אייקון "חדר קריאה": אותו סימן כמו src/Logo.tsx, בקרם על רקע חלודה -->
+  <rect width="512" height="512" rx="112" fill="#9a4a22"/>
+  <g transform="translate(80 56) scale(5.5)">
+    <g fill="none" stroke="#f6eedf" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11 54V33a21 21 0 0 1 42 0v21"/>
+      <path d="M6.5 54h51"/>
+      <path d="M32 12v26.5"/>
+      <path d="M32 38.5c-4.2-2.5-9.6-3.1-15-2.2v14.9c5.4-.9 10.8-.3 15 2.2M32 38.5c4.2-2.5 9.6-3.1 15-2.2v14.9c-5.4-.9-10.8-.3-15 2.2M32 38.5v14.9"/>
+    </g>
+    <path d="M36 50.6h4v10.2l-2-1.8-2 1.8z" fill="#e8b48a"/>
+  </g>
 </svg>

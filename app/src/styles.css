@@ -670,3 +670,14 @@ button.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
 @keyframes spin { to { transform: rotate(360deg); } }
 :root[data-theme='eink'] .busy::before, :root[data-theme='eink'] .loading-line::before { display: none; }
 @media (prefers-reduced-motion: reduce) { .busy::before, .loading-line::before { animation: none; } }
+
+/* ======================= לוגו ======================= */
+.logo-mark { display: block; flex: none; color: var(--fg); }
+.logo-ribbon { fill: var(--accent); }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.brand-text { min-width: 0; }
+.brand-name { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 2rem; line-height: 1; letter-spacing: -0.005em; }
+.brand-tagline { margin: 6px 0 0; font-size: 0.9rem; color: var(--muted); }
+.brand.lg { flex-direction: column; gap: 14px; text-align: center; margin: 9vh 0 28px; }
+.brand.lg .brand-name { font-size: 2.6rem; }
+.login-card { max-width: 420px; margin-inline: auto; }
