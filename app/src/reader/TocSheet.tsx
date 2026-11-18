@@ -2,6 +2,7 @@
 
 import { useState } from 'preact/hooks';
 import { Icon } from '../Icon';
+import { useSheetDrag } from '../useSheetDrag';
 import { locateSentence, type Annotation } from '../../../shared/annotations';
 import { parseSentenceId, type BookMeta } from '../../../shared/book';
 
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export function TocSheet(props: Props) {
+  const { sheetRef, handleProps } = useSheetDrag(props.onClose);
   const { book, chapterIdx, fraction, annotations, parserVersion } = props;
   const [tab, setTab] = useState<Tab>('chapters');
   const bookmarks = annotations.filter((a) => a.kind === 'bookmark');
@@ -45,8 +47,9 @@ export function TocSheet(props: Props) {
 
   return (
     <div class="overlay" onClick={props.onClose}>
-      <div class="sheet toc" role="dialog" aria-label="תוכן עניינים" onClick={(e) => e.stopPropagation()}>
-        <div class="sheet-head">
+      <div ref={sheetRef} class="sheet toc" role="dialog" aria-label="תוכן עניינים" onClick={(e) => e.stopPropagation()}>
+        <div class="sheet-grabber" aria-hidden="true" {...handleProps} />
+        <div class="sheet-head" {...handleProps}>
           <h2>תוכן עניינים</h2>
           <span class="spacer" />
           <button class="icon-btn" aria-label="סגירה" onClick={props.onClose}>

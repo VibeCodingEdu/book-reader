@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { Icon } from '../Icon';
+import { useSheetDrag } from '../useSheetDrag';
 
 interface Props {
   sentence: string;
@@ -11,14 +12,16 @@ interface Props {
 }
 
 export function NoteEditor({ sentence, initial, onSave, onClose }: Props) {
+  const { sheetRef, handleProps } = useSheetDrag(onClose);
   const [text, setText] = useState(initial);
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => ref.current?.focus(), []);
 
   return (
     <div class="overlay" onClick={onClose}>
-      <div class="sheet note-editor" role="dialog" aria-label="הערה על המשפט" onClick={(e) => e.stopPropagation()}>
-        <div class="sheet-head">
+      <div ref={sheetRef} class="sheet note-editor" role="dialog" aria-label="הערה על המשפט" onClick={(e) => e.stopPropagation()}>
+        <div class="sheet-grabber" aria-hidden="true" {...handleProps} />
+        <div class="sheet-head" {...handleProps}>
           <h2>{initial ? 'עריכת הערה' : 'הערה חדשה'}</h2>
           <span class="spacer" />
           <button class="icon-btn" aria-label="סגירה" onClick={onClose}>

@@ -17,6 +17,9 @@ import { Reader } from './Reader';
 import { Brand } from './Logo';
 import { SettingsSheet } from './SettingsSheet';
 
+/** משך האנימציה של מסך הפתיחה (index.html), מתחילת טעינת הדף */
+const SPLASH_MS = 1650;
+
 function guessDeviceName(): string {
   const ua = navigator.userAgent;
   if (/iPhone/.test(ua)) return 'אייפון';
@@ -33,13 +36,23 @@ export function App() {
 
   useEffect(() => setUnauthorizedHandler(() => setSession(null)), []);
 
-  // מסך הפתיחה (ב-index.html) נעלם אחרי הרינדור הראשון
+  // מסך הפתיחה (ב-index.html): מחכים שהאנימציה של הלוגו תסתיים (כ-1.5 שניות מטעינת הדף),
+  // ואז הוא נעלם. ב-E-ink ובהפחתת תנועה אין אנימציה – נעלם מיד.
   useEffect(() => {
     const splash = document.getElementById('splash');
     if (!splash) return;
-    splash.classList.add('gone');
-    const t = setTimeout(() => splash.remove(), 400);
-    return () => clearTimeout(t);
+    const still =
+      document.documentElement.dataset.theme === 'eink' || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const wait = still ? 0 : Math.max(0, SPLASH_MS - performance.now());
+    let t2: ReturnType<typeof setTimeout> | undefined;
+    const t1 = setTimeout(() => {
+      splash.classList.add('gone');
+      t2 = setTimeout(() => splash.remove(), 350);
+    }, wait);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, []);
 
   // ערכת הצבע חלה על כל הדף. "אוטו" = יום/לילה לפי המכשיר, ומתעדכן כשהמכשיר מתחלף.

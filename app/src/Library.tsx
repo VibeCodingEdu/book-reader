@@ -5,6 +5,7 @@ import { levelRank } from './levels';
 import { Cover } from './Cover';
 import { Icon } from './Icon';
 import { Brand } from './Logo';
+import { useSheetDrag } from './useSheetDrag';
 import { loadLocalPosition } from './position';
 import { ACCEPT, uploadFile } from './upload';
 
@@ -84,6 +85,7 @@ export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog }: Pro
   // אזור ההוספה מקופל כשיש ספרים; תפריט מחיקה פתוח לספר אחד
   const [addOpen, setAddOpen] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const addDrag = useSheetDrag(() => setAddOpen(false));
 
   const refresh = () =>
     listBooks()
@@ -433,8 +435,9 @@ export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog }: Pro
       {books?.length === 0 && addBlock}
       {addOpen && books && books.length > 0 && (
         <div class="overlay" onClick={() => setAddOpen(false)}>
-          <div class="sheet add-sheet" role="dialog" aria-label="הוספת ספר" onClick={(e) => e.stopPropagation()}>
-            <div class="sheet-head">
+          <div ref={addDrag.sheetRef} class="sheet add-sheet" role="dialog" aria-label="הוספת ספר" onClick={(e) => e.stopPropagation()}>
+            <div class="sheet-grabber" aria-hidden="true" {...addDrag.handleProps} />
+            <div class="sheet-head" {...addDrag.handleProps}>
               <h2>הוספת ספר</h2>
               <span class="spacer" />
               <button class="icon-btn" aria-label="סגירה" onClick={() => setAddOpen(false)}>

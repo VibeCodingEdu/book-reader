@@ -1,8 +1,10 @@
+import { useState } from 'preact/hooks';
 import type { TextTranslation, UnitType, WordLookup } from '../../shared/translate';
 import { ENGINE_LABELS } from '../../shared/translate';
 import { Icon } from './Icon';
 import { toggleSpeak, useSpeakingKey } from './speech';
 import type { SentenceTr } from './reader/useSentenceTranslations';
+import { useSheetDrag } from './useSheetDrag';
 
 type Result<T> =
   | { state: 'idle' }
@@ -46,31 +48,73 @@ interface Props {
   onEditNote?: () => void;
 }
 
+/** כפתור השמעה: בזמן ההשמעה – גל קול קטן מונפש (לחיצה עוצרת) */
+export function SpeakButton({ text, speakKey, label = 'השמעה באנגלית' }: { text: string; speakKey: string; label?: string }) {
+  const speaking = useSpeakingKey() === speakKey;
+  return (
+    <button
+      class={`icon-btn speak-btn ${speaking ? 'speaking' : ''}`}
+      aria-label={speaking ? 'עצירת ההשמעה' : label}
+      aria-pressed={speaking}
+      onClick={() => toggleSpeak(text, speakKey)}
+    >
+      {speaking ? (
+        <span class="wave" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+          <i />
+        </span>
+      ) : (
+        <Icon name="speak" />
+      )}
+    </button>
+  );
+}
+
+/** מקום שמור לתוצאה בזמן הטעינה: קווים מהבהבים בעדינות (ב-E-ink: טקסט בלבד) */
+function Skeleton({ label }: { label: string }) {
+  return (
+    <div class="skeleton" role="status">
+      <span class="visually-hidden">{label}</span>
+      <span class="sk-line w60" aria-hidden="true" />
+      <span class="sk-line w85" aria-hidden="true" />
+      <span class="sk-text" aria-hidden="true">
+        {label}
+      </span>
+    </div>
+  );
+}
+
 export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSentence, sentenceMarks, onToggleBookmark, onEditNote }: Props) {
-  const speaking = useSpeakingKey();
+  const { sheetRef, handleProps } = useSheetDrag(onClose);
   const heading =
     sel.kind === 'range' ? sel.text : sel.kind === 'word' && sel.state === 'done' ? sel.result.unit : sel.word;
   const toSpeak =
     sel.kind === 'range' ? sel.text : sel.kind === 'word' && sel.state === 'done' ? sel.result.unit : sel.word;
 
   return (
-    <div class="sheet" role="dialog" aria-label="תרגום" aria-live="polite" onClick={(e) => e.stopPropagation()}>
-      <div class="sheet-head">
-        <div class={`sheet-word en ${sel.kind === 'range' ? 'passage' : ''}`} lang="en">
-          {heading}
-          {sel.kind === 'range-start' && ' …'}
+    <div ref={sheetRef} class="sheet word-sheet" role="dialog" aria-label="תרגום" aria-live="polite" onClick={(e) => e.stopPropagation()}>
+      <div class="sheet-grabber" aria-hidden="true" {...handleProps} />
+      <div class="sheet-head" {...handleProps}>
+        <div class="sheet-title">
+          <div class={`sheet-word en ${sel.kind === 'range' ? 'passage' : ''}`} lang="en">
+            {heading}
+            {sel.kind === 'range-start' && ' …'}
+          </div>
+          {sel.kind === 'word' && sel.state === 'done' && (sel.result.ipa || TYPE_LABEL[sel.result.unitType]) && (
+            <div class="word-chips">
+              {sel.result.ipa && (
+                <span class="ipa-chip en" lang="en">
+                  {sel.result.ipa}
+                </span>
+              )}
+              {TYPE_LABEL[sel.result.unitType] && <span class="badge">{TYPE_LABEL[sel.result.unitType]}</span>}
+            </div>
+          )}
         </div>
-        {sel.kind === 'word' && sel.state === 'done' && TYPE_LABEL[sel.result.unitType] && (
-          <span class="badge">{TYPE_LABEL[sel.result.unitType]}</span>
-        )}
         <span class="spacer" />
-        <button
-          class="icon-btn"
-          aria-label={speaking === `sheet:${toSpeak}` ? 'עצירת ההשמעה' : 'השמעה באנגלית'}
-          onClick={() => toggleSpeak(toSpeak, `sheet:${toSpeak}`)}
-        >
-          <Icon name={speaking === `sheet:${toSpeak}` ? 'stop' : 'speak'} />
-        </button>
+        <SpeakButton text={toSpeak} speakKey={`sheet:${toSpeak}`} />
         <button class="icon-btn" aria-label="סגירה" onClick={onClose}>
           <Icon name="close" />
         </button>
@@ -83,19 +127,19 @@ export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSe
           תרגם
         </button>
       )}
-      {sel.kind !== 'range-start' && sel.state === 'loading' && <p class="sheet-muted loading-line">מתרגם בהקשר…</p>}
+      {sel.kind !== 'range-start' && sel.state === 'loading' && <Skeleton label="מתרגם בהקשר…" />}
       {sel.kind !== 'range-start' && sel.state === 'error' && <p class="msg bad">{sel.error}</p>}
 
-      {sel.kind === 'word' && sel.state === 'done' && <LookupBody r={sel.result} engine={sel.engine} cached={sel.cached} />}
+      {sel.kind === 'word' && sel.state === 'done' && <LookupBody key={sel.result.unit} r={sel.result} engine={sel.engine} cached={sel.cached} />}
       {sel.kind === 'range' && sel.state === 'done' && (
-        <>
+        <div class="reveal">
           <p class="sheet-meaning passage-tr">{sel.result.translation}</p>
           {sel.result.note && <p class="sheet-note">{sel.result.note}</p>}
           <p class="sheet-foot">
             {engineLabel(sel.engine)}
             {sel.cached ? ' · מהמטמון' : ''}
           </p>
-        </>
+        </div>
       )}
 
       {sel.kind === 'word' && onTranslateSentence && (
@@ -106,10 +150,10 @@ export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSe
               תרגום כל המשפט
             </button>
           )}
-          {sentenceTr?.state === 'loading' && <p class="sheet-muted">מתרגם את המשפט…</p>}
+          {sentenceTr?.state === 'loading' && <Skeleton label="מתרגם את המשפט…" />}
           {sentenceTr?.state === 'error' && <p class="msg bad">{sentenceTr.error}</p>}
           {sentenceTr?.state === 'done' && (
-            <p class="sheet-sentence-tr" dir="rtl">
+            <p class="sheet-sentence-tr reveal" dir="rtl">
               <span class="sheet-pos">המשפט: </span>
               {sentenceTr.text}
             </p>
@@ -136,11 +180,12 @@ export function WordSheet({ sel, onClose, onTranslate, sentenceTr, onTranslateSe
 }
 
 function LookupBody({ r, engine, cached }: { r: WordLookup; engine: string; cached: boolean }) {
+  const [more, setMore] = useState(false);
   return (
-    <>
+    <div class="reveal">
       <p class="sheet-meta">
         <span>{r.pos}</span>
-        {r.lemma && (
+        {r.lemma && r.lemma.toLowerCase() !== r.unit.toLowerCase() && (
           <>
             {' · '}
             <span class="en" lang="en">
@@ -148,30 +193,31 @@ function LookupBody({ r, engine, cached }: { r: WordLookup; engine: string; cach
             </span>
           </>
         )}
-        {r.ipa && (
-          <>
-            {' · '}
-            <span class="en ipa">{r.ipa}</span>
-          </>
-        )}
       </p>
       <p class="sheet-meaning">{r.contextMeaning}</p>
       {r.otherMeanings.length > 0 && (
         <>
-          <h3 class="sheet-sub">משמעויות נוספות</h3>
-          <ul class="sheet-list">
-            {r.otherMeanings.map((m, i) => (
-              <li key={i}>
-                <span class="sheet-pos">{m.pos}</span> {m.meaning}
-              </li>
-            ))}
-          </ul>
+          <button class="link-btn more-toggle" aria-expanded={more} onClick={() => setMore(!more)}>
+            <Icon name={more ? 'chevronUp' : 'chevronDown'} size={16} />
+            {more ? 'פחות' : `עוד ${r.otherMeanings.length === 1 ? 'משמעות אחת' : `${r.otherMeanings.length} משמעויות`}`}
+          </button>
+          <div class={`collapse ${more ? 'open' : ''}`}>
+            <div>
+              <ul class="sheet-list">
+                {r.otherMeanings.map((m, i) => (
+                  <li key={i}>
+                    <span class="sheet-pos">{m.pos}</span> {m.meaning}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </>
       )}
       <p class="sheet-foot">
         {engineLabel(engine)}
         {cached ? ' · מהמטמון' : ''}
       </p>
-    </>
+    </div>
   );
 }

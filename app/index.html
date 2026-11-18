@@ -22,11 +22,30 @@
       }
       #splash.gone { opacity: 0; pointer-events: none; }
       :root[data-theme='eink'] #splash { transition: none; }
-      #splash svg { width: 112px; height: 112px; animation: splash-in 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-      #splash .name { font: 700 2rem/1 Montserrat, 'Avenir Next', 'Segoe UI', system-ui, sans-serif; letter-spacing: 0.03em; text-transform: uppercase; animation: splash-in 500ms 80ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-      @keyframes splash-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-      @media (prefers-reduced-motion: reduce) { #splash svg, #splash .name { animation: none; } }
-      :root[data-theme='eink'] #splash svg, :root[data-theme='eink'] #splash .name { animation: none; }
+      #splash svg { width: 120px; height: 120px; overflow: visible; }
+      #splash .name { font: 700 2rem/1 Montserrat, 'Avenir Next', 'Segoe UI', system-ui, sans-serif; letter-spacing: 0.03em; text-transform: uppercase; }
+      #splash .tag { font: 500 0.72rem/1 Montserrat, 'Avenir Next', system-ui, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.6; }
+      /* הלוגו "נבנה" (כ-1.2 שניות): הרגליים מצטיירות מלמטה, הספר נפתח מהשדרה, הנבט צומח,
+         הסימניות נופלות למקום, ואז השם. ב-E-ink ובהפחתת תנועה – הכל מופיע מיד. */
+      #splash .leg { stroke-dasharray: 1; stroke-dashoffset: 1; animation: s-draw 520ms cubic-bezier(0.55, 0, 0.25, 1) forwards; }
+      #splash .book { transform-box: fill-box; transform-origin: 50% 100%; transform: scale(0.15, 0.6); opacity: 0; animation: s-open 560ms 380ms cubic-bezier(0.22, 1.25, 0.36, 1) forwards; }
+      #splash .sprout { transform-box: fill-box; transform-origin: 50% 100%; transform: scale(0); animation: s-grow 480ms 760ms cubic-bezier(0.3, 1.6, 0.4, 1) forwards; }
+      #splash .ribbon { transform: translateY(-60px); opacity: 0; animation: s-drop 420ms 860ms cubic-bezier(0.3, 1.4, 0.5, 1) forwards; }
+      #splash .inner { opacity: 0; animation: s-fade 300ms 420ms ease forwards; }
+      #splash .name, #splash .tag { opacity: 0; transform: translateY(8px); animation: s-up 480ms 980ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+      @keyframes s-draw { to { stroke-dashoffset: 0; } }
+      @keyframes s-open { to { transform: none; opacity: 1; } }
+      @keyframes s-grow { to { transform: none; } }
+      @keyframes s-drop { to { transform: none; opacity: 1; } }
+      @keyframes s-fade { to { opacity: 1; } }
+      @keyframes s-up { to { opacity: 1; transform: none; } }
+      @keyframes s-up-tag { to { opacity: 0.6; transform: none; } }
+      #splash .tag { animation-name: s-up-tag; animation-delay: 1080ms; }
+      @media (prefers-reduced-motion: reduce) {
+        #splash *, #splash .name, #splash .tag { animation: none !important; transform: none !important; opacity: 1 !important; stroke-dashoffset: 0 !important; }
+        #splash .tag { opacity: 0.6 !important; }
+      }
+      :root[data-theme='eink'] #splash *, :root[data-theme='eink'] #splash .name { animation: none !important; transform: none !important; opacity: 1 !important; stroke-dashoffset: 0 !important; }
     </style>
     <script>
       // ערכת הצבע לפני הציור הראשון – בלי הבזק לבן בלילה
@@ -42,12 +61,17 @@
     <div id="splash" aria-hidden="true">
       <svg viewBox="55 42 930 930">
         <defs><mask id="splash-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="1040" height="1040"><rect width="1040" height="1040" fill="#fff"/><path d="M107 688L190 573C330 578 460 620 520 714C580 620 710 578 850 573L933 688C820 700 620 735 520 790C420 735 220 700 107 688Z" fill="#000"/><path d="M132 668L190 573C330 578 460 620 520 714C580 620 710 578 850 573L908 668" fill="none" stroke="#000" stroke-width="82" stroke-linejoin="round"/></mask></defs>
-        <g fill="currentColor"><path d="M520 52C546 76 552 126 520 156C488 126 494 76 520 52Z"/><path d="M511 196C468 196 436 166 434 127C480 125 509 152 511 196Z"/><path d="M529 196C572 196 604 166 606 127C560 125 531 152 529 196Z"/><path d="M505.5 352h29v194l-14.5-13-14.5 13zM504 353 520 322 536 353z"/></g>
-        <path d="M151 925 520 254 889 925" fill="none" stroke="currentColor" stroke-width="78" stroke-linecap="round" stroke-linejoin="round" mask="url(#splash-cut)"/>
-        <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M107 688C250 700 420 735 520 788C620 735 790 700 933 688" stroke-width="42"/><path d="M132 668L190 573C330 578 460 620 520 714C580 620 710 578 850 573L908 668" stroke-width="29"/><path d="M178 639C320 645 450 676 506 746M862 639C720 645 590 676 534 746" stroke-width="30"/></g>
-        <path d="M468 822Q520 842 572 822V962L520 925 468 962Z" fill="var(--s-ac)"/>
+        <g mask="url(#splash-cut)" fill="none" stroke="currentColor" stroke-width="78" stroke-linecap="round">
+          <path class="leg" pathLength="1" d="M151 925 520 254"/>
+          <path class="leg" pathLength="1" d="M889 925 520 254"/>
+        </g>
+        <path class="inner" fill="currentColor" d="M505.5 352h29v194l-14.5-13-14.5 13zM504 353 520 322 536 353z"/>
+        <g class="sprout" fill="currentColor"><path d="M520 52C546 76 552 126 520 156C488 126 494 76 520 52Z"/><path d="M511 196C468 196 436 166 434 127C480 125 509 152 511 196Z"/><path d="M529 196C572 196 604 166 606 127C560 125 531 152 529 196Z"/></g>
+        <g class="book" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M107 688C250 700 420 735 520 788C620 735 790 700 933 688" stroke-width="42"/><path d="M132 668L190 573C330 578 460 620 520 714C580 620 710 578 850 573L908 668" stroke-width="29"/><path d="M178 639C320 645 450 676 506 746M862 639C720 645 590 676 534 746" stroke-width="30"/></g>
+        <path class="ribbon" d="M468 822Q520 842 572 822V962L520 925 468 962Z" fill="var(--s-ac)"/>
       </svg>
       <div class="name">LingoRead</div>
+      <div class="tag">Read &amp; Learn English</div>
     </div>
     <div id="app"></div>
     <script type="module" src="/src/main.tsx"></script>

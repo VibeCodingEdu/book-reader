@@ -4,6 +4,7 @@ import { getSpend, type Session, type Spend } from './api';
 import { collectDiagnostics } from './diagnostics';
 import type { DeviceSettings, FontFamily, Theme } from './deviceSettings';
 import { Icon } from './Icon';
+import { useSheetDrag } from './useSheetDrag';
 
 const FONTS: { id: FontFamily; label: string }[] = [
   { id: 'serif', label: 'Georgia' },
@@ -61,6 +62,7 @@ function Stepper(props: { label: string; value: string; onDec: () => void; onInc
 }
 
 export function SettingsSheet({ settings: s, session, onChange, onClose, onLogout }: Props) {
+  const { sheetRef, handleProps } = useSheetDrag(onClose);
   const [spend, setSpend] = useState<Spend | null>(null);
   const diag = useMemo(collectDiagnostics, []);
   const sample = useMemo(bookSample, []);
@@ -73,8 +75,9 @@ export function SettingsSheet({ settings: s, session, onChange, onClose, onLogou
 
   return (
     <div class="overlay" onClick={onClose}>
-      <div class="sheet settings" role="dialog" aria-label="הגדרות" onClick={(e) => e.stopPropagation()}>
-        <div class="sheet-head">
+      <div ref={sheetRef} class="sheet settings" role="dialog" aria-label="הגדרות" onClick={(e) => e.stopPropagation()}>
+        <div class="sheet-grabber" aria-hidden="true" {...handleProps} />
+        <div class="sheet-head" {...handleProps}>
           <h2>הגדרות ל{session.device}</h2>
           <span class="spacer" />
           <button class="icon-btn" aria-label="סגירה" onClick={onClose}>
