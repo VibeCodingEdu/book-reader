@@ -1,6 +1,7 @@
 // גישה למסד הנתונים (Cloudflare D1)
 
 import type { Annotation } from '../../shared/annotations';
+import type { Review, ReviewRating } from '../../shared/review';
 import type { SavedWord } from '../../shared/words';
 import { wordsInChapter, type BookMeta, type Chapter } from '../../shared/book';
 import type { WordLookup } from '../../shared/translate';
@@ -304,6 +305,35 @@ export async function upsertWords(db: D1Database, items: SavedWord[]): Promise<v
           w.id, w.bookId, w.bookTitle, w.sentenceId, w.parserVersion, w.wordOffset, w.unit, w.unitType, w.lemma, w.pos, w.ipa,
           w.meaning, w.sentence, w.stage, w.createdAt, w.updatedAt, w.deleted ? 1 : 0,
         ),
+    ),
+  );
+}
+
+// ---------- יומן חזרות ----------
+
+export const REVIEWS_PAGE = 2000;
+
+/** שורות היומן שאחרי seq נתון (עד עמוד אחד), ו-seq האחרון שהוחזר */
+export async function listReviewsAfter(db: D1Database, after: number): Promise<{ items: Review[]; last: number }> {
+  const { results } = await db
+    .prepare('SELECT seq, id, word_id, rating, reviewed_at FROM reviews WHERE seq > ? ORDER BY seq LIMIT ?')
+    .bind(after, REVIEWS_PAGE)
+    .all<{ seq: number; id: string; word_id: string; rating: number; reviewed_at: number }>();
+  return {
+    items: results.map((r) => ({ id: r.id, wordId: r.word_id, rating: r.rating as ReviewRating, reviewedAt: r.reviewed_at })),
+    last: results.length ? results[results.length - 1].seq : after,
+  };
+}
+
+/** הוספה ליומן. שורה שכבר קיימת (אותו מזהה) – מתעלמים */
+export async function addReviews(db: D1Database, items: Review[]): Promise<void> {
+  if (!items.length) return;
+  const now = Date.now();
+  await db.batch(
+    items.map((r) =>
+      db
+        .prepare('INSERT OR IGNORE INTO reviews (id, word_id, rating, reviewed_at, received_at) VALUES (?, ?, ?, ?, ?)')
+        .bind(r.id, r.wordId, r.rating, r.reviewedAt, now),
     ),
   );
 }

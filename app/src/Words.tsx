@@ -41,11 +41,12 @@ function SentenceMarked({ w }: { w: SavedWord }) {
   );
 }
 
-function WordRow({ w, onStage, onSaveMeaning, onDelete }: {
+function WordRow({ w, onStage, onSaveMeaning, onDelete, onOpenSentence }: {
   w: SavedWord;
   onStage: (s: WordStage) => void;
   onSaveMeaning: (m: string) => void;
   onDelete: () => void;
+  onOpenSentence: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(w.meaning);
@@ -88,7 +89,11 @@ function WordRow({ w, onStage, onSaveMeaning, onDelete }: {
         </p>
       )}
       <SentenceMarked w={w} />
-      <p class="word-source">{w.bookTitle}</p>
+      <p class="word-source">
+        <button class="link-btn" onClick={onOpenSentence}>
+          {w.bookTitle} · למשפט בספר
+        </button>
+      </p>
       <div class="row word-actions">
         <label class="stage-pick">
           <span class="visually-hidden">שלב</span>
@@ -112,7 +117,11 @@ function WordRow({ w, onStage, onSaveMeaning, onDelete }: {
   );
 }
 
-export function Words({ onBack }: { onBack: () => void }) {
+export function Words({ onBack, onPractice, onOpenSentence }: {
+  onBack: () => void;
+  onPractice: () => void;
+  onOpenSentence: (bookId: string, sid: string) => void;
+}) {
   const words = useWords();
   const [q, setQ] = useState('');
   const [sort, setSortState] = useState<Sort>(readSort);
@@ -166,8 +175,14 @@ export function Words({ onBack }: { onBack: () => void }) {
           <Icon name="back" />
         </button>
         <h1>המילים שלי</h1>
-        <span class="spacer" />
         <span class="muted">{words.items.length}</span>
+        <span class="spacer" />
+        {words.items.length > 0 && (
+          <button class="secondary practice-btn" onClick={onPractice}>
+            <Icon name="star" size={18} />
+            תרגול
+          </button>
+        )}
       </div>
 
       {words.loaded && words.items.length === 0 ? (
@@ -214,6 +229,7 @@ export function Words({ onBack }: { onBack: () => void }) {
                 onStage={(s) => words.setStage(w, s)}
                 onSaveMeaning={(m) => words.update(w, { meaning: m })}
                 onDelete={() => words.remove(w)}
+                onOpenSentence={() => onOpenSentence(w.bookId, w.sentenceId)}
               />
             ))}
           </ul>

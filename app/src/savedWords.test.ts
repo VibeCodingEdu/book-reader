@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SavedWord } from '../../shared/words';
-import { buildIndex, matchSentence, savedAt } from './savedWords';
+import { buildIndex, matchSentence, savedAt, unitOffsets } from './savedWords';
 
 const w = (unit: string, lemma = unit, over: Partial<SavedWord> = {}): SavedWord => ({
   id: `word-${unit.replace(/\W/g, '')}1234`,
@@ -60,5 +60,20 @@ describe('matchSentence', () => {
     const idx = buildIndex([w('walk')]);
     expect(savedAt(idx, 'She walked.', 4)?.word.unit).toBe('walk');
     expect(savedAt(idx, 'She walked.', 0)).toBeUndefined();
+  });
+});
+
+describe('unitOffsets', () => {
+  it('ביטוי במשפט שבו נשמר', () => {
+    const word = w('broke out', 'break out', { sentence: 'A fight broke out.', wordOffset: 8 });
+    expect(unitOffsets(word)).toEqual([8, 14]);
+  });
+  it('מופע חוזר – זה שנלחץ', () => {
+    const word = w('walk', 'walk', { sentence: 'I walk and you walk.', wordOffset: 15 });
+    expect(unitOffsets(word)).toEqual([15]);
+  });
+  it('לא נמצא – המילה שנלחצה', () => {
+    const word = w('xyz', 'xyz', { sentence: 'Nothing here.', wordOffset: 3 });
+    expect(unitOffsets(word)).toEqual([3]);
   });
 });

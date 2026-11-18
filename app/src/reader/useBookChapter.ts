@@ -10,7 +10,7 @@ import { createPositionSaver, resolveStartPosition } from '../position';
 /** לאן לקפוץ אחרי שפרק נטען: משפט עוגן, או סוף הפרק (בדפדוף אחורה) */
 export type Target = { anchor: string | null } | { end: true };
 
-export function useBookChapter(book: BookMeta, onLoadStart: () => void) {
+export function useBookChapter(book: BookMeta, onLoadStart: () => void, startSid?: string) {
   const [chapterIdx, setChapterIdx] = useState<number | null>(null);
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,9 +57,15 @@ export function useBookChapter(book: BookMeta, onLoadStart: () => void) {
     [book],
   );
 
-  // מיקום התחלה
+  // מיקום התחלה: משפט שהתבקש (למשל מרשימת המילים), או המיקום השמור
   useEffect(() => {
     let cancelled = false;
+    const wanted = startSid ? parseSentenceId(startSid) : null;
+    if (wanted && wanted.c < book.chapterCount) {
+      savePosition(startSid!);
+      loadChapter(wanted.c, { anchor: startSid! });
+      return;
+    }
     resolveStartPosition(book.id).then((pos) => {
       if (cancelled) return;
       const parsed = pos ? parseSentenceId(pos.sentenceId) : null;

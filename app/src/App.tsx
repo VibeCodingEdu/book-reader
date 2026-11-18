@@ -15,6 +15,8 @@ import { Catalog } from './Catalog';
 import { Library } from './Library';
 import { Reader } from './Reader';
 import { Words } from './Words';
+import { Practice } from './practice/Practice';
+import { listBooks } from './api';
 import { Brand } from './Logo';
 import { SettingsSheet } from './SettingsSheet';
 
@@ -35,6 +37,22 @@ export function App() {
   const [catalog, setCatalog] = useState<Set<string> | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showWords, setShowWords] = useState(false);
+  const [showPractice, setShowPractice] = useState(false);
+  /** פתיחת ספר במשפט מסוים (מרשימת המילים) */
+  const [startSid, setStartSid] = useState<string | undefined>(undefined);
+  const openBook = (b: BookMeta | null, sid?: string) => {
+    setStartSid(sid);
+    setBook(b);
+  };
+  const openSentence = async (bookId: string, sid: string) => {
+    try {
+      const b = (await listBooks()).find((x) => x.id === bookId);
+      if (b) openBook(b, sid);
+      else alert('הספר הזה כבר לא בספרייה');
+    } catch {
+      alert('אין חיבור לשרת');
+    }
+  };
 
   useEffect(() => setUnauthorizedHandler(() => setSession(null)), []);
 
@@ -105,25 +123,36 @@ export function App() {
     <>
       {book ? (
         <Reader
+          key={`${book.id}:${startSid ?? ''}`}
           book={book}
+          startSid={startSid}
           settings={settings}
-          onBack={() => setBook(null)}
+          onBack={() => openBook(null)}
           onOpenSettings={() => setShowSettings(true)}
           onPatchSettings={(patch) => updateSettings({ ...settings, ...patch })}
         />
+      ) : showPractice ? (
+        <Practice newPerDay={settings.newPerDay} onBack={() => setShowPractice(false)} />
       ) : showWords ? (
-        <Words onBack={() => setShowWords(false)} />
+        <Words onBack={() => setShowWords(false)} onPractice={() => setShowPractice(true)} onOpenSentence={openSentence} />
       ) : catalog ? (
         <Catalog
           have={catalog}
           onBack={() => setCatalog(null)}
           onUploaded={(b) => {
             setCatalog(null);
-            setBook(b);
+            openBook(b);
           }}
         />
       ) : (
-        <Library onOpen={setBook} onOpenSettings={() => setShowSettings(true)} onOpenCatalog={setCatalog} onOpenWords={() => setShowWords(true)} />
+        <Library
+          onOpen={(b) => openBook(b)}
+          onOpenSettings={() => setShowSettings(true)}
+          onOpenCatalog={setCatalog}
+          onOpenWords={() => setShowWords(true)}
+          onPractice={() => setShowPractice(true)}
+          newPerDay={settings.newPerDay}
+        />
       )}
       {showSettings && (
         <SettingsSheet
@@ -136,6 +165,7 @@ export function App() {
             setShowSettings(false);
             setBook(null);
             setShowWords(false);
+            setShowPractice(false);
             setSession(null);
           }}
         />

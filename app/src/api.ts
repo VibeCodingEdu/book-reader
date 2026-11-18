@@ -1,4 +1,5 @@
 import type { Annotation } from '../../shared/annotations';
+import type { Review } from '../../shared/review';
 import type { SavedWord } from '../../shared/words';
 import type { BookMeta, Chapter } from '../../shared/book';
 import type {
@@ -235,6 +236,14 @@ export const getWords = () => request<{ items: SavedWord[] }>('/api/words').then
 
 export const putWords = (items: SavedWord[], keepalive = false) =>
   request('/api/words', { method: 'PUT', body: JSON.stringify({ items }), keepalive });
+
+// ---------- יומן חזרות ----------
+
+export const getReviewsAfter = (after: number) =>
+  request<{ items: Review[]; last: number; more: boolean }>(`/api/reviews?after=${after}`);
+
+export const postReviews = (items: Review[], keepalive = false) =>
+  request('/api/reviews', { method: 'POST', body: JSON.stringify({ items }), keepalive });
 
 export interface Spend {
   month: string;

@@ -18,7 +18,8 @@
     "@fontsource/source-serif-4": "^5.3.1",
     "fflate": "^0.8.3",
     "pdfjs-dist": "^6.5.438",
-    "preact": "^11.2.0"
+    "preact": "^11.2.0",
+    "ts-fsrs": "6.0.0"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.6",

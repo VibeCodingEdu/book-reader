@@ -4,6 +4,7 @@ import { deleteBook, friendlyError, importBook, listBooks, searchGutenberg, type
 import { levelRank } from './levels';
 import { Cover } from './Cover';
 import { Icon } from './Icon';
+import { PracticeBanner } from './practice/PracticeBanner';
 import { Brand } from './Logo';
 import { useSheetDrag } from './useSheetDrag';
 import { loadLocalPosition } from './position';
@@ -61,9 +62,11 @@ interface Props {
   onOpenSettings: () => void;
   onOpenCatalog: (have: Set<string>) => void;
   onOpenWords: () => void;
+  onPractice: () => void;
+  newPerDay: number;
 }
 
-export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog, onOpenWords }: Props) {
+export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog, onOpenWords, onPractice, newPerDay }: Props) {
   const onOpen = (b: BookMeta) => {
     markOpened(b.id);
     openBook(b);
@@ -316,6 +319,8 @@ export function Library({ onOpen: openBook, onOpenSettings, onOpenCatalog, onOpe
       )}
 
       {books === null && !error && <p class="muted">טוען…</p>}
+
+      <PracticeBanner newPerDay={newPerDay} onPractice={onPractice} />
 
       {current && (
         <section class="continue" aria-label="ממשיכים לקרוא">

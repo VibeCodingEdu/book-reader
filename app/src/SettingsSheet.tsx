@@ -142,6 +142,15 @@ export function SettingsSheet({ settings: s, session, onChange, onClose, onLogou
           onInc={() => set({ margin: Math.min(64, s.margin + 4) })}
         />
 
+        <Stepper
+          label="מילים חדשות לתרגול ביום"
+          value={`${s.newPerDay}`}
+          decLabel="פחות מילים חדשות ביום"
+          incLabel="יותר מילים חדשות ביום"
+          onDec={() => set({ newPerDay: Math.max(0, s.newPerDay - 5) })}
+          onInc={() => set({ newPerDay: Math.min(50, s.newPerDay + 5) })}
+        />
+
         <label class="field">
           <span>מנוע תרגום</span>
           <select value={s.engine} onChange={(e) => set({ engine: e.currentTarget.value })}>

@@ -78,3 +78,13 @@ export function savedAt(idx: SavedIndex, sentence: string, offset: number): Save
 }
 
 export const STAGE_CLASS: Record<WordStage, string> = { new: 'sv-new', learning: 'sv-learning', known: 'sv-known' };
+
+/** איפה היחידה השמורה נמצאת במשפט שבו נשמרה (מיקומי המילים). אם לא נמצאה – המילה שנלחצה */
+export function unitOffsets(w: SavedWord): number[] {
+  const matches = matchSentence(buildIndex([{ ...w, deleted: false }]), w.sentence);
+  if (!matches.length) return [w.wordOffset];
+  const hit = matches.find((m) => m.offsets.includes(w.wordOffset));
+  if (hit) return hit.offsets;
+  // הקרוב ביותר למקום שנלחץ
+  return matches.reduce((a, b) => (Math.abs(b.offsets[0] - w.wordOffset) < Math.abs(a.offsets[0] - w.wordOffset) ? b : a)).offsets;
+}

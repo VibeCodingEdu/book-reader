@@ -22,11 +22,13 @@ interface Props {
   onBack: () => void;
   onOpenSettings: () => void;
   onPatchSettings: (patch: Partial<DeviceSettings>) => void;
+  /** לפתוח במשפט הזה (ולא במיקום השמור) – למשל מרשימת המילים */
+  startSid?: string;
 }
 
-export function Reader({ book, settings, onBack, onOpenSettings, onPatchSettings }: Props) {
+export function Reader({ book, settings, onBack, onOpenSettings, onPatchSettings, startSid }: Props) {
   const clearRef = useRef<() => void>(() => {});
-  const ch = useBookChapter(book, () => clearRef.current());
+  const ch = useBookChapter(book, () => clearRef.current(), startSid);
   const ann = useAnnotations(book);
   const words = useWords();
   const [tocOpen, setTocOpen] = useState(false);

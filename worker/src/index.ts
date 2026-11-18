@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
 import { validateAnnotation, type Annotation } from '../../shared/annotations';
+import { validateReview, type Review } from '../../shared/review';
 import { validateWord, type SavedWord } from '../../shared/words';
 import { normalizeMeta, parseSentenceId, parserVersionOf, sentenceId, type BookMeta, type Chapter } from '../../shared/book';
 import type {
@@ -442,6 +443,27 @@ app.put('/api/words', async (c) => {
     if (err) return c.json({ error: err }, 400);
   }
   await store.upsertWords(c.env.DB, items as SavedWord[]);
+  return c.json({ ok: true });
+});
+
+// ---------- יומן חזרות (תרגול) ----------
+
+app.get('/api/reviews', async (c) => {
+  const after = Number(c.req.query('after') ?? 0);
+  if (!Number.isInteger(after) || after < 0) return c.json({ error: 'מיקום לא תקין' }, 400);
+  const { items, last } = await store.listReviewsAfter(c.env.DB, after);
+  return c.json({ items, last, more: items.length === store.REVIEWS_PAGE });
+});
+
+app.post('/api/reviews', async (c) => {
+  const body = await c.req.json<{ items?: unknown[] }>();
+  const items = Array.isArray(body.items) ? body.items : [];
+  if (items.length > 500) return c.json({ error: 'יותר מדי רשומות' }, 400);
+  for (const it of items) {
+    const err = validateReview(it);
+    if (err) return c.json({ error: err }, 400);
+  }
+  await store.addReviews(c.env.DB, items as Review[]);
   return c.json({ ok: true });
 });
 

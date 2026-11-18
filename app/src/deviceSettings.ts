@@ -17,6 +17,8 @@ export interface DeviceSettings {
   viewMode: ViewMode;
   /** תרגום מקביל במצב לימוד: כבוי / גלוי / מוסתר עד לחיצה */
   parallel: ParallelMode;
+  /** תרגול: כמה מילים חדשות להתחיל בכל יום */
+  newPerDay: number;
   updatedAt: number;
 }
 
@@ -35,6 +37,7 @@ export const DEFAULT_SETTINGS: DeviceSettings = {
   autoTranslate: true,
   viewMode: 'read',
   parallel: 'off',
+  newPerDay: 10,
   updatedAt: 0,
 };
 
@@ -57,6 +60,7 @@ export function normalizeSettings(obj: Partial<DeviceSettings> | null | undefine
     autoTranslate: typeof o.autoTranslate === 'boolean' ? o.autoTranslate : true,
     viewMode: o.viewMode === 'study' ? 'study' : 'read',
     parallel: o.parallel === 'show' || o.parallel === 'hide' ? o.parallel : 'off',
+    newPerDay: Number.isInteger(o.newPerDay) ? num(o.newPerDay, 0, 50, DEFAULT_SETTINGS.newPerDay) : DEFAULT_SETTINGS.newPerDay,
     updatedAt: typeof o.updatedAt === 'number' ? o.updatedAt : 0,
   };
 }
