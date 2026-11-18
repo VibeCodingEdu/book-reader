@@ -1,7 +1,9 @@
-// מסך התרגול. שלושה מצבים (נבחרים בראש המסך ונשמרים בהגדרות המכשיר):
+// מסך התרגול. מצבים (נבחרים בראש המסך ונשמרים בהגדרות המכשיר):
 //  • הצגה: משפט עם רווח + רמז בעברית; נזכרים בראש, חושפים ומדרגים.
 //  • הקלדה: אותו משפט, מקלידים את המילה (במקלדת, או בהכתבה של המקלדת) ומקבלים חיווי.
 //  • עברית ← אנגלית: רק המשמעות בעברית; מקלידים את המילה באנגלית.
+//  • אנגלית ← עברית: המילה בלי הקשר; בוחרים את התרגום מבין 4 (כשיש מספיק מילים, אחרת מדרגים בעצמכם).
+//  • האזנה: רק השמעה של המילה; מקלידים מה ששמעתם.
 // בכל המצבים הדירוג (שוב / קשה / טוב / קל) נכנס לאותו יומן ולאותו FSRS.
 // אין AI ואין רשת (היומן מסונכרן ברקע).
 
@@ -12,9 +14,10 @@ import type { PracticeMode } from '../deviceSettings';
 import { Icon } from '../Icon';
 import { tokenize } from '../paging';
 import { unitOffsets } from '../savedWords';
-import { stopSpeaking } from '../speech';
+import { speak, stopSpeaking, useSpeakingKey } from '../speech';
 import { SpeakButton } from '../WordSheet';
 import { checkAnswer, suggestedRating, type Verdict } from './answer';
+import { pickChoices } from './choices';
 import { formatInterval, previewIntervals } from './schedule';
 import { usePractice } from './usePractice';
 
@@ -32,6 +35,8 @@ const MODES: { id: PracticeMode; label: string }[] = [
   { id: 'reveal', label: 'הצגה' },
   { id: 'type', label: 'הקלדה' },
   { id: 'heen', label: 'עברית ← אנגלית' },
+  { id: 'enhe', label: 'אנגלית ← עברית' },
+  { id: 'listen', label: 'האזנה' },
 ];
 
 const VERDICT: Record<Verdict, { icon: string; title: string; cls: string }> = {
@@ -68,6 +73,22 @@ function accepted(w: SavedWord, inContext: boolean): { ok: string[]; near: strin
   return inContext ? { ok: [w.unit], near: lemma } : { ok: [w.unit, ...lemma], near: [] };
 }
 
+/** כפתור השמעה גדול למצב האזנה: רגיל, ואיטי */
+function ListenButtons({ text, id }: { text: string; id: string }) {
+  const key = useSpeakingKey();
+  return (
+    <div class="listen-row">
+      <button class="listen-btn" onClick={() => speak(text, `listen:${id}`)} aria-pressed={key === `listen:${id}`}>
+        <Icon name="speak" size={28} />
+        השמעה
+      </button>
+      <button class="secondary listen-slow" onClick={() => speak(text, `listen:${id}`, 0.55)}>
+        לאט
+      </button>
+    </div>
+  );
+}
+
 export function Practice({ newPerDay, mode, onMode, onBack }: {
   newPerDay: number;
   mode: PracticeMode;
@@ -80,10 +101,11 @@ export function Practice({ newPerDay, mode, onMode, onBack }: {
   const [revealed, setRevealed] = useState(false);
   const [typed, setTyped] = useState('');
   const [verdict, setVerdict] = useState<Verdict | null>(null);
+  /** בחירה מבין 4 (אנגלית ← עברית): מזהה המילה שנבחרה */
+  const [picked, setPicked] = useState<string | null>(null);
   const [done, setDone] = useState(0);
   const counts = useRef({ again: 0, total: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
-  const typing = mode !== 'reveal';
 
   useEffect(() => {
     if (order === null && p.ready) setOrder([...p.queue.due, ...p.queue.fresh].map((w) => w.id));
@@ -100,15 +122,25 @@ export function Practice({ newPerDay, mode, onMode, onBack }: {
     [p.scheduler, wc, currentId],
   );
 
-  /** התשובה נחשפה: בהצגה – אחרי "הצגת התשובה"; בהקלדה – אחרי בדיקה */
-  const shown = typing ? verdict !== null : revealed;
+  /** אפשרויות הבחירה (אנגלית ← עברית); אם אין מספיק משמעויות שונות – מדרגים בעצמכם */
+  const choices = useMemo(
+    () => (mode === 'enhe' && current ? pickChoices(current, p.words.items) : null),
+    [mode, current, p.words.items],
+  );
+  const typing = mode === 'type' || mode === 'heen' || mode === 'listen';
+  const choosing = mode === 'enhe' && !!choices;
 
-  // כרטיס חדש או מצב חדש: מאפסים, ובמצבי הקלדה מכוונים את הסמן לשדה (פותח את המקלדת)
+  /** התשובה נחשפה */
+  const shown = typing || choosing ? verdict !== null : revealed;
+
+  // כרטיס חדש או מצב חדש: מאפסים; בהקלדה מכוונים את הסמן לשדה (פותח את המקלדת); בהאזנה משמיעים
   useEffect(() => {
     setRevealed(false);
     setTyped('');
     setVerdict(null);
+    setPicked(null);
     if (typing) setTimeout(() => inputRef.current?.focus(), 50);
+    if (mode === 'listen' && current) setTimeout(() => speak(current.unit, `listen:${current.id}`), 250);
   }, [currentId, mode]);
 
   const check = () => {
@@ -122,6 +154,11 @@ export function Practice({ newPerDay, mode, onMode, onBack }: {
     setTyped('');
     setVerdict('wrong');
     inputRef.current?.blur();
+  };
+  const choose = (id: string) => {
+    if (!current || verdict) return;
+    setPicked(id);
+    setVerdict(id === current.id ? 'correct' : 'wrong');
   };
 
   const rate = (rating: ReviewRating) => {
@@ -143,7 +180,7 @@ export function Practice({ newPerDay, mode, onMode, onBack }: {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
       if (!current) return;
-      if (!shown && !typing && (e.key === ' ' || e.key === 'Enter')) {
+      if (!shown && !typing && !choosing && (e.key === ' ' || e.key === 'Enter')) {
         e.preventDefault();
         setRevealed(true);
       } else if (shown && ['1', '2', '3', '4'].includes(e.key)) rate(Number(e.key) as ReviewRating);
@@ -157,6 +194,8 @@ export function Practice({ newPerDay, mode, onMode, onBack }: {
   });
 
   const left = order ? order.filter((id) => byId.has(id)).length : 0;
+  /** במצבים שבהם המשמעות לא מוצגת בשאלה – מציגים אותה עם התשובה */
+  const meaningInAnswer = mode === 'enhe' || mode === 'listen';
 
   return (
     <main class="page practice-page">
@@ -214,14 +253,35 @@ export function Practice({ newPerDay, mode, onMode, onBack }: {
 
       {current && (
         <section class="card practice-card" key={current.id}>
-          {mode === 'heen' ? (
+          {/* ---------- השאלה ---------- */}
+          {mode === 'heen' && (
             <>
               <p class="practice-ask">מהי המילה באנגלית?</p>
               <p class="practice-meaning">{current.meaning}</p>
               {current.pos && !shown && <p class="muted small">{current.pos}</p>}
               {shown && <Cloze w={current} revealed />}
             </>
-          ) : (
+          )}
+          {mode === 'enhe' && (
+            <>
+              <p class="practice-ask">מה המשמעות?</p>
+              <div class="word-head">
+                <span class="practice-word en" lang="en">
+                  {current.unit}
+                </span>
+                <SpeakButton text={current.unit} speakKey={`practice-q:${current.id}`} />
+              </div>
+              {shown && <Cloze w={current} revealed />}
+            </>
+          )}
+          {mode === 'listen' && (
+            <>
+              <p class="practice-ask">הקשיבו והקלידו את המילה</p>
+              <ListenButtons text={current.unit} id={current.id} />
+              {shown && <Cloze w={current} revealed />}
+            </>
+          )}
+          {(mode === 'reveal' || mode === 'type') && (
             <>
               <p class="practice-hint">
                 <span class="muted">רמז: </span>
@@ -232,6 +292,7 @@ export function Practice({ newPerDay, mode, onMode, onBack }: {
           )}
           <p class="word-source">{current.bookTitle}</p>
 
+          {/* ---------- קלט ---------- */}
           {typing && !verdict && (
             <form
               class="type-form"
@@ -267,22 +328,45 @@ export function Practice({ newPerDay, mode, onMode, onBack }: {
             </form>
           )}
 
-          {!typing && !revealed && (
+          {choosing && choices && (
+            <ul class="choice-list" aria-label="בחרו את התרגום">
+              {choices.map((c) => {
+                const state = !verdict ? '' : c.id === current.id ? 'right' : c.id === picked ? 'wrong' : 'dim';
+                return (
+                  <li key={c.id}>
+                    <button class={`choice ${state}`} disabled={!!verdict} onClick={() => choose(c.id)}>
+                      {c.meaning}
+                    </button>
+                  </li>
+                );
+              })}
+              {!verdict && (
+                <li>
+                  <button class="secondary choice-skip" onClick={giveUp}>
+                    לא זוכר
+                  </button>
+                </li>
+              )}
+            </ul>
+          )}
+
+          {!typing && !choosing && !revealed && (
             <button class="reveal-btn" onClick={() => setRevealed(true)}>
               הצגת התשובה
             </button>
           )}
 
+          {/* ---------- התשובה והדירוג ---------- */}
           {shown && (
             <div class="practice-answer reveal">
-              {typing && verdict && (
+              {verdict && (typing || choosing) && (
                 <div class={`verdict ${VERDICT[verdict].cls}`} role="status">
                   <span class="verdict-icon" aria-hidden="true">
                     {VERDICT[verdict].icon}
                   </span>
                   <span class="verdict-text">
                     <strong>{VERDICT[verdict].title}</strong>
-                    {verdict !== 'correct' && typed.trim() && (
+                    {typing && verdict !== 'correct' && typed.trim() && (
                       <span class="verdict-typed">
                         {' '}
                         כתבתם: <span class="en" lang="en">{typed.trim()}</span>
@@ -303,6 +387,7 @@ export function Practice({ newPerDay, mode, onMode, onBack }: {
                 <span class="spacer" />
                 <SpeakButton text={current.unit} speakKey={`practice:${current.id}`} />
               </div>
+              {meaningInAnswer && <p class="sheet-meaning">{current.meaning}</p>}
               {(current.pos || (current.lemma && current.lemma.toLowerCase() !== current.unit.toLowerCase())) && (
                 <p class="sheet-meta">
                   {current.pos}

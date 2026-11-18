@@ -838,3 +838,27 @@ button.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
 .rate-btn.suggested { border-color: var(--accent); border-width: 2px; background: var(--accent-soft); }
 :root[data-theme='eink'] .rate-btn.suggested { background: #000; }
 :root[data-theme='eink'] .rate-btn.suggested .rate-label, :root[data-theme='eink'] .rate-btn.suggested .rate-when { color: #fff; }
+
+/* ---------- תרגול: האזנה, בחירה מבין 4, ייצוא ---------- */
+.practice-modes { flex-wrap: wrap; }
+.practice-modes button { flex: 1 1 calc(33% - 6px); }
+.practice-word { font-size: 1.8rem; font-weight: 600; direction: ltr; }
+.listen-row { display: flex; gap: 10px; }
+.listen-btn { flex: 1; min-height: 64px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.15rem; }
+.listen-btn[aria-pressed='true'] { background: var(--raised); color: var(--accent); border-color: var(--accent); }
+.listen-slow { min-height: 64px; min-width: 84px; }
+:root[data-theme='eink'] .listen-btn[aria-pressed='true'] { background: #000; color: #fff; }
+.choice-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.choice { width: 100%; min-height: 56px; justify-content: flex-start; text-align: start; font-size: 1.05rem; font-weight: 500;
+  background: transparent; color: var(--fg); border-color: var(--line); }
+.choice:hover:not(:disabled) { background: var(--ghost-hover); }
+.choice.right { background: color-mix(in srgb, var(--ok) 16%, transparent); border-color: var(--ok); color: var(--fg); opacity: 1; }
+.choice.wrong { background: color-mix(in srgb, var(--bad) 14%, transparent); border-color: var(--bad); color: var(--fg); opacity: 1; }
+.choice.dim { opacity: 0.45; }
+.choice-skip { width: 100%; }
+:root[data-theme='eink'] .choice { border: 2px solid #000; }
+:root[data-theme='eink'] .choice.right { background: #000; color: #fff; }
+:root[data-theme='eink'] .choice.wrong { border-style: double; border-width: 4px; background: #fff; }
+:root[data-theme='eink'] .choice.dim { opacity: 1; border-style: dashed; }
+.export-row { align-items: center; gap: 12px; }
+.export-row button { display: inline-flex; align-items: center; gap: 8px; }

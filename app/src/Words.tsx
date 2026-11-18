@@ -7,6 +7,7 @@ import { Icon } from './Icon';
 import { tokenize } from './paging';
 import { SpeakButton } from './WordSheet';
 import { useWords } from './useWords';
+import { buildAnkiCsv, downloadCsv } from './anki';
 
 type Sort = 'recent' | 'alpha' | 'stage';
 const SORT_KEY = 'words.sort';
@@ -221,6 +222,18 @@ export function Words({ onBack, onPractice, onOpenSentence }: {
           </div>
 
           {shown.length === 0 && <p class="muted">לא נמצאו מילים שמתאימות.</p>}
+          {shown.length > 0 && (
+            <div class="row export-row">
+              <button
+                class="secondary"
+                onClick={() => downloadCsv(buildAnkiCsv(shown), `lingoread-words-${new Date().toISOString().slice(0, 10)}.csv`)}
+              >
+                <Icon name="upload" size={18} />
+                ייצוא ל-Anki ({shown.length})
+              </button>
+              <span class="muted small">קובץ CSV של המילים המוצגות</span>
+            </div>
+          )}
           <ul class="word-list">
             {shown.map((w) => (
               <WordRow

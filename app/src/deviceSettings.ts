@@ -27,9 +27,9 @@ export type FontFamily = 'serif' | 'sans' | 'literata' | 'source-serif' | 'lexen
 export const FONT_FAMILIES: FontFamily[] = ['serif', 'sans', 'literata', 'source-serif', 'lexend'];
 export type ViewMode = 'read' | 'study';
 export type ParallelMode = 'off' | 'show' | 'hide';
-/** סוג התרגול: הצגת תשובה / הקלדה במשפט / מעברית לאנגלית */
-export type PracticeMode = 'reveal' | 'type' | 'heen';
-export const PRACTICE_MODES: PracticeMode[] = ['reveal', 'type', 'heen'];
+/** סוג התרגול: הצגת תשובה / הקלדה במשפט / מעברית לאנגלית / מאנגלית לעברית / האזנה */
+export type PracticeMode = 'reveal' | 'type' | 'heen' | 'enhe' | 'listen';
+export const PRACTICE_MODES: PracticeMode[] = ['reveal', 'type', 'heen', 'enhe', 'listen'];
 
 export const DEFAULT_SETTINGS: DeviceSettings = {
   theme: 'light',
