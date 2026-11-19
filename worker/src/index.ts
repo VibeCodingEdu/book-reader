@@ -17,7 +17,8 @@ import type {
   WordLookupRequest,
   WordLookupResponse,
 } from '../../shared/translate';
-import { hasForeignScript, lookupHasForeignScript, stripForeignScript, stripLookup } from '../../shared/translate';
+import { BIG_CHAPTER_CHARS, GEMINI_FALLBACK, hasForeignScript, lookupHasForeignScript, stripForeignScript, stripLookup } from '../../shared/translate';
+import type { ChapterInfoResponse } from '../../shared/translate';
 import { looksBroken, translateAll } from './translate/batch';
 import { countChars, GOOGLE_FREE_CHARS, GOOGLE_NMT } from './translate/google';
 import { validateUpload } from './upload';
@@ -336,23 +337,54 @@ function sentenceEngineOr503(c: { env: Env }, engineId: string) {
   }
 }
 
+
+/**
+ * מנוע לתרגום משפטים: Google; וכשהמכסה החינמית שלו נגמרת – Gemini (אם יש מפתח) במקום לעצור.
+ * מחזיר גם שגיאה (תקרת ההוצאה בדולרים, או מכסה שנגמרה כשאין גיבוי).
+ */
+async function pickWithFallback(c: Context<AppEnv>, base: string, chars: number): Promise<{ engineId: string; error?: string }> {
+  let engineId = base;
+  if (base === GOOGLE_NMT && c.env.GEMINI_API_KEY) {
+    const { byEngine } = await store.monthSpend(c.env.DB);
+    if ((byEngine[GOOGLE_NMT]?.chars ?? 0) + chars > GOOGLE_FREE_CHARS) engineId = GEMINI_FALLBACK;
+  }
+  const error = await quotaError(c.env.DB, c.env, engineId, chars);
+  return error ? { engineId, error } : { engineId };
+}
+
+/** תרגום פרק שמור: במנוע הרגיל, ואם אין – בגיבוי (פרק שתורגם ב-Gemini כשהמכסה נגמרה לא יתורגם שוב) */
+async function cachedChapter(db: D1Database, bookId: string, idx: number, base: string, pv: number) {
+  const first = await store.getChapterTranslations(db, bookId, idx, base, pv);
+  if (first) return { translations: first, engine: base };
+  if (base === GOOGLE_NMT) {
+    const alt = await store.getChapterTranslations(db, bookId, idx, GEMINI_FALLBACK, pv);
+    if (alt) return { translations: alt, engine: GEMINI_FALLBACK };
+  }
+  return null;
+}
+
 // קטע שסומן (לחיצה ארוכה ואז נגיעה)
 app.post('/api/translate/text', async (c) => {
   const req = await c.req.json<TextTranslateRequest>();
   if (!req.text?.trim() || req.text.length > 3000 || (req.context ?? '').length > 6000) {
     return c.json({ error: 'בקשה לא תקינה' }, 400);
   }
-  const engineId = pickSentenceEngineId(c.env.DEFAULT_ENGINE, c.env);
+  const base = pickSentenceEngineId(c.env.DEFAULT_ENGINE, c.env);
   const lang = req.lang || 'en';
-  const key = await store.cacheKey(['text', engineId, lang, req.text.trim(), req.context ?? '']);
-  const cached = (await store.getCachedLookup(c.env.DB, key)) as unknown as TextTranslation | null;
-  if (cached && !hasForeignScript(`${cached.translation} ${cached.note ?? ''}`)) {
-    return c.json({ result: cached, engine: engineId, cached: true } as unknown as TextTranslateResponse);
+  const text = req.text.trim();
+  const keyFor = (e: string) => store.cacheKey(['text', e, lang, text, req.context ?? '']);
+  // שמור מהמנוע הרגיל, או מהגיבוי (אם קטע כבר תורגם ב-Gemini כשהמכסה נגמרה)
+  for (const e of base === GOOGLE_NMT ? [base, GEMINI_FALLBACK] : [base]) {
+    const hit = (await store.getCachedLookup(c.env.DB, await keyFor(e))) as unknown as TextTranslation | null;
+    if (hit && !hasForeignScript(`${hit.translation} ${hit.note ?? ''}`)) {
+      return c.json({ result: hit, engine: e, cached: true } as unknown as TextTranslateResponse);
+    }
   }
 
-  const text = req.text.trim();
-  const qErr = await quotaError(c.env.DB, c.env, engineId, text.length);
-  if (qErr) return c.json({ error: qErr }, 402);
+  const pick = await pickWithFallback(c, base, text.length);
+  if (pick.error) return c.json({ error: pick.error }, 402);
+  const engineId = pick.engineId;
+  const key = await keyFor(engineId);
 
   let result: TextTranslation;
   let usd = 0;
@@ -381,23 +413,55 @@ app.post('/api/translate/text', async (c) => {
   return c.json({ result, engine: engineId, cached: false } satisfies TextTranslateResponse);
 });
 
+// מידע על תרגום פרק לפני שמבצעים אותו (בלי עלות): האם כבר שמור, כמה תווים, ואיזה מנוע יתרגם.
+// האפליקציה משתמשת בזה כדי לבקש אישור לפני תרגום פרק גדול.
+app.get('/api/translate/chapter-info', async (c) => {
+  const idx = Number(c.req.query('chapterIdx'));
+  const bookId = c.req.query('bookId') ?? '';
+  const book = bookId ? await store.getBook(c.env.DB, bookId) : null;
+  if (!book || !Number.isInteger(idx) || idx < 0) return c.json({ error: 'בקשה לא תקינה' }, 400);
+  const base = pickSentenceEngineId(c.env.DEFAULT_ENGINE, c.env);
+  const pv = parserVersionOf(book);
+  const chapter = await store.getChapter(c.env.DB, book.id, idx);
+  if (!chapter) return c.json({ error: 'הפרק לא נמצא' }, 404);
+  const chars = countChars(chapterSentences(chapter, idx).map((s) => s.text));
+  const cached = await cachedChapter(c.env.DB, book.id, idx, base, pv);
+  const { byEngine } = await store.monthSpend(c.env.DB);
+  const used = byEngine[GOOGLE_NMT]?.chars ?? 0;
+  const fallback = !cached && base === GOOGLE_NMT && !!c.env.GEMINI_API_KEY && used + chars > GOOGLE_FREE_CHARS;
+  const engine = cached ? cached.engine : fallback ? GEMINI_FALLBACK : base;
+  // הערכת עלות ב-Gemini: ~4 תווים לטוקן בקלט, ופלט בעברית ~1.3 מהקלט (מחירים כמו ב-engines.ts)
+  const tokens = chars / 4;
+  const estimateUsd = !cached && engine === GEMINI_FALLBACK ? tokens * 0.3e-6 + tokens * 1.3 * 2.5e-6 : 0;
+  return c.json({
+    cached: !!cached,
+    chars,
+    needsConfirm: !cached && chars > BIG_CHAPTER_CHARS,
+    engine,
+    fallback,
+    quota: base === GOOGLE_NMT ? { used, limit: GOOGLE_FREE_CHARS } : null,
+    estimateUsd,
+  } satisfies ChapterInfoResponse);
+});
+
 // תרגום מקביל של פרק שלם. נשמר בשרת לכל ספר, פרק, מנוע וגרסת פענוח.
 app.post('/api/translate/chapter', async (c) => {
   const req = await c.req.json<ChapterTranslateRequest>();
   const idx = Number(req.chapterIdx);
   const book = typeof req.bookId === 'string' ? await store.getBook(c.env.DB, req.bookId) : null;
   if (!book || !Number.isInteger(idx) || idx < 0) return c.json({ error: 'בקשה לא תקינה' }, 400);
-  const engineId = pickSentenceEngineId(c.env.DEFAULT_ENGINE, c.env);
+  const base = pickSentenceEngineId(c.env.DEFAULT_ENGINE, c.env);
   const pv = parserVersionOf(book);
 
-  const cached = await store.getChapterTranslations(c.env.DB, book.id, idx, engineId, pv);
-  if (cached) return c.json({ translations: cached, engine: engineId, cached: true } satisfies ChapterTranslateResponse);
+  const cached = await cachedChapter(c.env.DB, book.id, idx, base, pv);
+  if (cached) return c.json({ translations: cached.translations, engine: cached.engine, cached: true } satisfies ChapterTranslateResponse);
 
   const chapter = await store.getChapter(c.env.DB, book.id, idx);
   if (!chapter) return c.json({ error: 'הפרק לא נמצא' }, 404);
   const sentences = chapterSentences(chapter, idx);
-  const qErr = await quotaError(c.env.DB, c.env, engineId, countChars(sentences.map((s) => s.text)));
-  if (qErr) return c.json({ error: qErr }, 402);
+  const pick = await pickWithFallback(c, base, countChars(sentences.map((s) => s.text)));
+  if (pick.error) return c.json({ error: pick.error }, 402);
+  const engineId = pick.engineId;
   const engine = sentenceEngineOr503(c, engineId);
   if (engine instanceof Error) return c.json({ error: engine.message }, 503);
 
@@ -435,16 +499,18 @@ app.post('/api/translate/sentence', async (c) => {
   const pos = typeof req.sid === 'string' ? parseSentenceId(req.sid) : null;
   const book = typeof req.bookId === 'string' ? await store.getBook(c.env.DB, req.bookId) : null;
   if (!book || !pos || pos.c !== idx) return c.json({ error: 'בקשה לא תקינה' }, 400);
-  const engineId = pickSentenceEngineId(c.env.DEFAULT_ENGINE, c.env);
+  const base = pickSentenceEngineId(c.env.DEFAULT_ENGINE, c.env);
   const pv = parserVersionOf(book);
 
-  const whole = await store.getChapterTranslations(c.env.DB, book.id, idx, engineId, pv);
-  if (whole?.[req.sid]) {
-    return c.json({ translation: whole[req.sid], engine: engineId, cached: true } satisfies SentenceTranslateResponse);
+  const whole = await cachedChapter(c.env.DB, book.id, idx, base, pv);
+  if (whole?.translations[req.sid]) {
+    return c.json({ translation: whole.translations[req.sid], engine: whole.engine, cached: true } satisfies SentenceTranslateResponse);
   }
-  const key = await store.cacheKey(['sentence', engineId, pv, book.id, req.sid]);
-  const one = (await store.getCachedLookup(c.env.DB, key)) as unknown as { translation: string } | null;
-  if (one) return c.json({ translation: one.translation, engine: engineId, cached: true } satisfies SentenceTranslateResponse);
+  const keyFor = (e: string) => store.cacheKey(['sentence', e, pv, book.id, req.sid]);
+  for (const e of base === GOOGLE_NMT ? [base, GEMINI_FALLBACK] : [base]) {
+    const one = (await store.getCachedLookup(c.env.DB, await keyFor(e))) as unknown as { translation: string } | null;
+    if (one) return c.json({ translation: one.translation, engine: e, cached: true } satisfies SentenceTranslateResponse);
+  }
 
   const chapter = await store.getChapter(c.env.DB, book.id, idx);
   if (!chapter) return c.json({ error: 'הפרק לא נמצא' }, 404);
@@ -452,12 +518,16 @@ app.post('/api/translate/sentence', async (c) => {
   const k = sentences.findIndex((s) => s.sid === req.sid);
   if (k < 0) return c.json({ error: 'המשפט לא נמצא' }, 404);
 
-  const around =
-    engineId === GOOGLE_NMT ? [{ i: 0, text: sentences[k].text, sid: req.sid }]
+  // ב-Google נשלח רק המשפט; במודל שפה – עם המשפט שלפניו ושאחריו בשביל ההקשר
+  const aroundFor = (e: string) =>
+    e === GOOGLE_NMT ? [{ i: 0, text: sentences[k].text, sid: req.sid }]
     : sentences.slice(Math.max(0, k - 1), k + 2).map((s, j) => ({ i: j, text: s.text, sid: s.sid }));
+  const pick = await pickWithFallback(c, base, sentences[k].text.length);
+  if (pick.error) return c.json({ error: pick.error }, 402);
+  const engineId = pick.engineId;
+  const around = aroundFor(engineId);
   const target = around.find((s) => s.sid === req.sid)!;
-  const qErr = await quotaError(c.env.DB, c.env, engineId, countChars(around.map((s) => s.text)));
-  if (qErr) return c.json({ error: qErr }, 402);
+  const key = await keyFor(engineId);
   const engine = sentenceEngineOr503(c, engineId);
   if (engine instanceof Error) return c.json({ error: engine.message }, 503);
 

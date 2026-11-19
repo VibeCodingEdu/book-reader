@@ -1032,3 +1032,10 @@ button.secondary.logout { width: 100%; margin: 10px 0 14px; color: var(--bad); b
 .voice-play.is-playing { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 .voice-play .wave { margin-inline-start: 4px; height: 16px; }
 :root[data-theme='eink'] .voice-play.is-playing { background: #000; color: #fff; }
+
+/* אישור לפני תרגום פרק גדול */
+.tr-confirm { position: fixed; left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 12; padding: 16px 18px; background: var(--raised); border: var(--border-w) solid var(--line); border-radius: 18px; box-shadow: var(--shadow-sheet); max-width: 520px; margin: 0 auto; }
+.tr-confirm p { margin: 0 0 8px; line-height: 1.5; }
+.tr-confirm-title { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; }
+.tr-confirm .row { margin-top: 10px; }
+:root[data-theme='eink'] .tr-confirm { border: 2px solid #000; border-radius: 0; box-shadow: none; }

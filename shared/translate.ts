@@ -44,6 +44,30 @@ export const ENGINE_LABELS: Record<string, string> = {
   saved: 'מהמילים שלי',
 };
 
+/** המנוע שמחליף את Google Translate כשהמכסה החינמית שלו נגמרת */
+export const GEMINI_FALLBACK = 'gemini-flash-lite';
+
+/** פרק גדול מזה (בתווים) לא מתורגם אוטומטית: קודם שואלים את המשתמש */
+export const BIG_CHAPTER_CHARS = 15_000;
+
+/** מה שהשרת יודע על תרגום פרק לפני שמבצעים אותו (בלי עלות) */
+export interface ChapterInfoResponse {
+  /** כבר מתורגם ושמור (לא יעלה כלום) */
+  cached: boolean;
+  /** תווי הפרק */
+  chars: number;
+  /** גדול מספיק כדי לבקש אישור */
+  needsConfirm: boolean;
+  /** המנוע שיתרגם */
+  engine: string;
+  /** Google נגמר ועוברים ל-Gemini */
+  fallback: boolean;
+  /** מכסת Google החינמית החודש: כמה נוצל מתוך כמה (null אם המנוע אינו Google) */
+  quota: { used: number; limit: number } | null;
+  /** עלות משוערת בדולרים (0 ב-Google) */
+  estimateUsd: number;
+}
+
 /**
  * תווים מכתב שלא אמור להופיע בתרגום לעברית: ערבית, קירילית, סינית, יפנית, קוריאנית, הינדי ותאילנדית.
  * מודלי שפה קטנים לפעמים "מחליקים" ומכניסים תו כזה באמצע מילה עברית (למשל "כיוﺻר" במקום "כיוצר").

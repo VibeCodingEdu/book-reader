@@ -5,6 +5,7 @@ import type { SavedWord } from '../../shared/words';
 import type { BookMeta, Chapter } from '../../shared/book';
 import type {
   ChapterTranslateRequest,
+  ChapterInfoResponse,
   ChapterTranslateResponse,
   SentenceTranslateRequest,
   SentenceTranslateResponse,
@@ -218,6 +219,10 @@ export const translateText = (req: TextTranslateRequest) =>
 /** תרגום מקביל של פרק שלם (מזהה משפט → תרגום) */
 export const translateChapter = (req: ChapterTranslateRequest) =>
   request<ChapterTranslateResponse>('/api/translate/chapter', { method: 'POST', body: JSON.stringify(req) });
+
+/** מידע על תרגום פרק לפני שמבצעים אותו: האם שמור, כמה תווים, ואיזה מנוע (בלי עלות) */
+export const getChapterInfo = (bookId: string, chapterIdx: number) =>
+  request<ChapterInfoResponse>(`/api/translate/chapter-info?bookId=${encodeURIComponent(bookId)}&chapterIdx=${chapterIdx}`);
 
 /** תרגום משפט בודד */
 export const translateSentence = (req: SentenceTranslateRequest) =>

@@ -12,6 +12,7 @@ import { screenStep, topVisibleId, type RowBox } from './studyAnchor';
 import type { ParallelMode } from '../deviceSettings';
 import { saveProps } from './saveProps';
 import { useSavedMarks } from './useSavedMarks';
+import type { ChapterInfoResponse } from '../../../shared/translate';
 import { useSelection } from './useSelection';
 import { useSentenceTranslations, type SentenceTr } from './useSentenceTranslations';
 import type { ViewProps } from './viewProps';
@@ -53,7 +54,7 @@ export function StudyView({ book, settings, ch, clearRef, followRef, onPatchSett
   }, [chapterIdx]);
   // תרגום מקביל פעיל – מביאים את כל הפרק (פעם אחת לפרק)
   useEffect(() => {
-    if (parallel !== 'off' && chapter && tr.chapterState === 'idle') tr.loadChapter();
+    if (parallel !== 'off' && chapter && tr.chapterState === 'idle') tr.requestChapter();
   }, [parallel, chapter, tr.chapterState]);
 
   const toggleSet = (set: Set<string>, sid: string) => {
@@ -270,7 +271,7 @@ export function StudyView({ book, settings, ch, clearRef, followRef, onPatchSett
                         onReveal={() => reveal(sid)}
                         onHide={parallel === 'hide' && revealed.has(sid) ? () => reveal(sid) : undefined}
                         onRetry={() => tr.translateOne(sid)}
-                        pending={parallel !== 'off' && tr.chapterState === 'idle'}
+                        pending={parallel !== 'off' && (tr.chapterState === 'idle' || tr.chapterState === 'checking')}
                       />
                     </div>
                   );
@@ -311,6 +312,14 @@ export function StudyView({ book, settings, ch, clearRef, followRef, onPatchSett
         </button>
       </footer>
 
+      {parallel !== 'off' && tr.chapterState === 'confirm' && tr.chapterInfo && (
+        <BigChapterNotice
+          info={tr.chapterInfo}
+          onConfirm={() => tr.loadChapter()}
+          onCancel={() => onPatchSettings({ parallel: 'off' })}
+        />
+      )}
+
       {parallel !== 'off' && tr.chapterState === 'error' && (
         <div class="tr-error" role="alert">
           {tr.chapterError}{' '}
@@ -332,6 +341,32 @@ export function StudyView({ book, settings, ch, clearRef, followRef, onPatchSett
         />
       )}
     </>
+  );
+}
+
+/** פרק גדול: לפני שמתרגמים אותו כולו, אומרים כמה זה עולה ומבקשים אישור */
+function BigChapterNotice({ info, onConfirm, onCancel }: { info: ChapterInfoResponse; onConfirm: () => void; onCancel: () => void }) {
+  const n = (x: number) => x.toLocaleString('he-IL');
+  const pct = info.quota ? Math.max(1, Math.round((info.chars / info.quota.limit) * 100)) : null;
+  return (
+    <div class="tr-confirm" role="alertdialog" aria-label="תרגום פרק גדול">
+      <p class="tr-confirm-title">הפרק הזה גדול</p>
+      <p>
+        תרגום מקביל מתרגם את כל הפרק בבת אחת: <strong>{n(info.chars)} תווים</strong>
+        {info.engine === 'google-nmt' && pct !== null && <> ({pct}% מהמכסה החינמית החודשית של גוגל)</>}.
+      </p>
+      {info.fallback && (
+        <p class="muted small">
+          המכסה החינמית של גוגל לחודש הזה כמעט נגמרה, ולכן התרגום יבוצע ב-Gemini. עלות משוערת: כ-{info.estimateUsd.toFixed(2)}$.
+        </p>
+      )}
+      <div class="row">
+        <button onClick={onConfirm}>תרגום הפרק</button>
+        <button class="secondary" onClick={onCancel}>
+          לא עכשיו
+        </button>
+      </div>
+    </div>
   );
 }
 
