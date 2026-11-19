@@ -13,9 +13,11 @@ import type {
   TextTranslateRequest,
   TextTranslateResponse,
   TextTranslation,
+  WordLookup,
   WordLookupRequest,
   WordLookupResponse,
 } from '../../shared/translate';
+import { hasForeignScript, lookupHasForeignScript, stripForeignScript, stripLookup } from '../../shared/translate';
 import { looksBroken, translateAll } from './translate/batch';
 import { countChars, GOOGLE_FREE_CHARS, GOOGLE_NMT } from './translate/google';
 import { validateUpload } from './upload';
@@ -272,7 +274,8 @@ app.post('/api/translate/word', async (c) => {
 
   const key = await store.cacheKey([engineId, lang, req.word.toLowerCase(), req.offset ?? -1, req.sentence]);
   const cached = await store.getCachedLookup(c.env.DB, key);
-  if (cached) return c.json({ result: cached, engine: engineId, cached: true } satisfies WordLookupResponse);
+  // תוצאה שמורה עם תווים זרים (תקלה של המודל) נחשבת כאילו אין – מתרגמים מחדש ודורסים אותה
+  if (cached && !lookupHasForeignScript(cached)) return c.json({ result: cached, engine: engineId, cached: true } satisfies WordLookupResponse);
 
   const cap = Number(c.env.MONTHLY_CAP_USD ?? '5');
   const { total } = await store.monthSpend(c.env.DB);
@@ -285,8 +288,20 @@ app.post('/api/translate/word', async (c) => {
     if (e instanceof EngineUnavailable) return c.json({ error: e.message }, 503);
     throw e;
   }
-  const { result, usd } = await engine.lookupWord({ ...req, lang });
-  await Promise.all([store.putCachedLookup(c.env.DB, key, engineId, result), store.addSpend(c.env.DB, engineId, usd)]);
+  // המודל לפעמים מכניס תו מכתב זר באמצע מילה עברית. מנסים שוב (עד 3 פעמים בסך הכול), ואם זה נמשך –
+  // מנקים את התווים הזרים ולא שומרים במטמון, כדי שהניסיון הבא יתרגם מחדש.
+  let result: WordLookup;
+  let spent = 0;
+  let attempts = 0;
+  do {
+    const r = await engine.lookupWord({ ...req, lang });
+    result = r.result;
+    spent += r.usd;
+    attempts++;
+  } while (lookupHasForeignScript(result) && attempts < 3);
+  const clean = !lookupHasForeignScript(result);
+  if (!clean) result = stripLookup(result);
+  await Promise.all([clean ? store.putCachedLookup(c.env.DB, key, engineId, result) : Promise.resolve(), store.addSpend(c.env.DB, engineId, spent)]);
   return c.json({ result, engine: engineId, cached: false } satisfies WordLookupResponse);
 });
 
@@ -330,8 +345,10 @@ app.post('/api/translate/text', async (c) => {
   const engineId = pickSentenceEngineId(c.env.DEFAULT_ENGINE, c.env);
   const lang = req.lang || 'en';
   const key = await store.cacheKey(['text', engineId, lang, req.text.trim(), req.context ?? '']);
-  const cached = await store.getCachedLookup(c.env.DB, key);
-  if (cached) return c.json({ result: cached, engine: engineId, cached: true } as unknown as TextTranslateResponse);
+  const cached = (await store.getCachedLookup(c.env.DB, key)) as unknown as TextTranslation | null;
+  if (cached && !hasForeignScript(`${cached.translation} ${cached.note ?? ''}`)) {
+    return c.json({ result: cached, engine: engineId, cached: true } as unknown as TextTranslateResponse);
+  }
 
   const text = req.text.trim();
   const qErr = await quotaError(c.env.DB, c.env, engineId, text.length);
@@ -357,7 +374,10 @@ app.post('/api/translate/text', async (c) => {
     ({ result, usd } = await engine.translateText({ ...req, lang }));
   }
   if (!result.translation || looksBroken(result.translation)) return c.json({ error: 'המנוע לא החזיר תרגום תקין' }, 502);
-  await Promise.all([store.putCachedLookup(c.env.DB, key, engineId, result as never), store.addSpend(c.env.DB, engineId, usd, chars)]);
+  // תו מכתב זר בתוך התרגום (תקלה של מודל שפה): מנקים ולא שומרים במטמון
+  const dirty = hasForeignScript(`${result.translation} ${result.note ?? ''}`);
+  if (dirty) result = { translation: stripForeignScript(result.translation), note: stripForeignScript(result.note ?? '') };
+  await Promise.all([dirty ? Promise.resolve() : store.putCachedLookup(c.env.DB, key, engineId, result as never), store.addSpend(c.env.DB, engineId, usd, chars)]);
   return c.json({ result, engine: engineId, cached: false } satisfies TextTranslateResponse);
 });
 

@@ -44,6 +44,35 @@ export const ENGINE_LABELS: Record<string, string> = {
   saved: 'מהמילים שלי',
 };
 
+/**
+ * תווים מכתב שלא אמור להופיע בתרגום לעברית: ערבית, קירילית, סינית, יפנית, קוריאנית, הינדי ותאילנדית.
+ * מודלי שפה קטנים לפעמים "מחליקים" ומכניסים תו כזה באמצע מילה עברית (למשל "כיוﺻר" במקום "כיוצר").
+ * אנגלית (למשל מילה מצוטטת) ועברית – תקינות.
+ */
+const FOREIGN_SCRIPT =
+  /[\p{Script=Arabic}\p{Script=Cyrillic}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Devanagari}\p{Script=Thai}]/u;
+const FOREIGN_SCRIPT_G = new RegExp(FOREIGN_SCRIPT.source, 'gu');
+
+export const hasForeignScript = (s: string): boolean => FOREIGN_SCRIPT.test(s);
+
+/** מוריד תווים מכתב זר (מוצא אחרון, כשגם ניסיון חוזר לא עזר) */
+export const stripForeignScript = (s: string): string => s.replace(FOREIGN_SCRIPT_G, '').replace(/\s{2,}/g, ' ').trim();
+
+/** האם תוצאת לחיצה על מילה מכילה תווים זרים באחד משדות הטקסט */
+export function lookupHasForeignScript(r: WordLookup): boolean {
+  return [r.unit, r.lemma, r.pos, r.ipa, r.contextMeaning, ...r.otherMeanings.flatMap((m) => [m.pos, m.meaning])].some(hasForeignScript);
+}
+
+/** מנקה תווים זרים מכל שדות התוצאה */
+export function stripLookup(r: WordLookup): WordLookup {
+  return {
+    ...r,
+    contextMeaning: stripForeignScript(r.contextMeaning),
+    pos: stripForeignScript(r.pos),
+    otherMeanings: r.otherMeanings.map((m) => ({ pos: stripForeignScript(m.pos), meaning: stripForeignScript(m.meaning) })),
+  };
+}
+
 /** מסיר ניקוד, לצורך השוואות */
 export function stripNiqqud(s: string): string {
   return s.replace(/[֑-ׇ]/g, '');
