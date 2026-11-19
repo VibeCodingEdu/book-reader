@@ -6,8 +6,8 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { ENGINES } from '../../shared/translate';
 import { getSpend, type Session, type Spend } from './api';
 import { collectDiagnostics } from './diagnostics';
-import type { DeviceSettings, FontFamily, Theme } from './deviceSettings';
-import { Icon } from './Icon';
+import { DEFAULT_SETTINGS, type DeviceSettings, type FontFamily, type Theme } from './deviceSettings';
+import { Icon, type IconName } from './Icon';
 import { SpendDetails } from './SpendDetails';
 import { useSheetDrag } from './useSheetDrag';
 import { VoicePicker } from './VoicePicker';
@@ -59,10 +59,15 @@ export function settingsTitle(device: string): string {
 // ---------- רכיבים קטנים ----------
 
 /** אזור בהגדרות: כותרת, הסבר אופציונלי וכרטיס עם התוכן */
-function Section({ title, hint, children }: { title: string; hint?: string; children: ComponentChildren }) {
+function Section({ title, icon, hint, children }: { title: string; icon: IconName; hint?: string; children: ComponentChildren }) {
   return (
     <section class="set-section">
-      <h3>{title}</h3>
+      <h3>
+        <span class="set-icon" aria-hidden="true">
+          <Icon name={icon} size={16} />
+        </span>
+        {title}
+      </h3>
       {hint && <p class="set-hint">{hint}</p>}
       <div class="set-card">{children}</div>
     </section>
@@ -193,7 +198,7 @@ export function SettingsSheet({ settings: s, session, onChange, onClose, onLogou
         </div>
 
         {/* ---------- תצוגה ---------- */}
-        <Section title="תצוגת הקריאה" hint="ההגדרות האלה נשמרות לכל מכשיר בנפרד.">
+        <Section icon="type" title="תצוגת הקריאה" hint="ההגדרות האלה נשמרות לכל מכשיר בנפרד.">
           <p class="settings-preview en" lang="en" dir="ltr" style={{ fontSize: `${s.fontSize}px`, lineHeight: String(s.lineHeight) }} data-font={s.fontFamily}>
             {sample}
           </p>
@@ -242,10 +247,16 @@ export function SettingsSheet({ settings: s, session, onChange, onClose, onLogou
               onInc={() => set({ margin: Math.min(64, s.margin + 4) })}
             />
           </Row>
+          <button
+            class="secondary reset-btn"
+            onClick={() => set({ theme: DEFAULT_SETTINGS.theme, fontSize: DEFAULT_SETTINGS.fontSize, fontFamily: DEFAULT_SETTINGS.fontFamily, lineHeight: DEFAULT_SETTINGS.lineHeight, margin: DEFAULT_SETTINGS.margin })}
+          >
+            איפוס תצוגה לברירת המחדל
+          </button>
         </Section>
 
         {/* ---------- תרגום ---------- */}
-        <Section title="תרגום" hint="תרגום מילה בלחיצה. משפטים, קטעים ותרגום מקביל מתורגמים תמיד בגוגל תרגום.">
+        <Section icon="translate" title="תרגום" hint="תרגום מילה בלחיצה. משפטים, קטעים ותרגום מקביל מתורגמים תמיד בגוגל תרגום.">
           <Row stack label="מנוע לתרגום מילים" hint="ברירת המחדל מתאימה ברוב המקרים.">
             <select value={s.engine} onChange={(e) => set({ engine: e.currentTarget.value })} aria-label="מנוע לתרגום מילים">
               <option value="">ברירת המחדל של השרת</option>
@@ -262,12 +273,12 @@ export function SettingsSheet({ settings: s, session, onChange, onClose, onLogou
         </Section>
 
         {/* ---------- הקראה ---------- */}
-        <Section title="הקראה" hint="הקול שבו הספר מוקרא (כפתור האוזניות בספר). החלפת קול מכינה את הפרק מחדש, פעם אחת לכל פרק.">
+        <Section icon="headphones" title="הקראה" hint="הקול שבו הספר מוקרא (כפתור האוזניות בספר). החלפת קול מכינה את הפרק מחדש, פעם אחת לכל פרק.">
           <VoicePicker voice={s.ttsVoice} onChange={(ttsVoice) => set({ ttsVoice })} />
         </Section>
 
         {/* ---------- תרגול ---------- */}
-        <Section title="תרגול מילים">
+        <Section icon="star" title="תרגול מילים">
           <Row label="מילים חדשות ביום" hint="כמה מילים שמורות חדשות מתחילים לתרגל בכל יום.">
             <Stepper
               value={`${s.newPerDay}`}
@@ -280,7 +291,7 @@ export function SettingsSheet({ settings: s, session, onChange, onClose, onLogou
         </Section>
 
         {/* ---------- שימוש ---------- */}
-        <Section title="שימוש החודש" hint="המכסות מתאפסות בתחילת כל חודש.">
+        <Section icon="toc" title="שימוש החודש" hint="המכסות מתאפסות בתחילת כל חודש.">
           {!spend && <p class="set-note">טוען…</p>}
           {spend && (
             <>
@@ -305,7 +316,7 @@ export function SettingsSheet({ settings: s, session, onChange, onClose, onLogou
         </Section>
 
         {/* ---------- מכשיר ---------- */}
-        <Section title="המכשיר">
+        <Section icon="settings" title="המכשיר">
           <Disclosure title="בדיקת מכשיר">
             <table class="diag">
               <tbody>

@@ -259,6 +259,8 @@ export interface TtsSample {
   audio: string;
   mime: string;
   check: { sent: number; returned: number; missing: string[] };
+  /** זמן תחילת כל מילה (שם הסימון s0o{מיקום במשפט}) */
+  timepoints: { markName: string; timeSeconds: number }[];
   chars: number;
 }
 export const getTtsVoices = () => request<{ voices: TtsVoice[] }>('/api/tts/voices').then((r) => r.voices);
